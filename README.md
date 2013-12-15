@@ -10,11 +10,12 @@ For the null byte in patterns, `strong` suports both `"%z"`, like Lua 5.1 and "\
 
 ### TOC
 
-* [Performance](#Performace)
-* [Usage](#Usage)
-* [Undefined Behavior](#Undefined Behavior)
-* [License](#License)
-* [Notes](#Notes)
+* [Performance](#performance)
+* [Usage](#usage)
+* [Undefined Behavior](#undefined-behavior)
+* [TODO](#todo)
+* [License](#license)
+* [Notes](#notes)
 
 ## Performance
 
