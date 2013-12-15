@@ -1,6 +1,6 @@
 #strong.lua
 
-Implements the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
+a rewrite of the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
 
 `strong.find`, `strong.match`, and `strong.gmatch` are currently implmented according to the Lua manual.
 
@@ -8,14 +8,11 @@ Implements the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
 
 For the null byte in patterns, `strong` suports both `"%z"`, like Lua 5.1 and "\0", like Lua 5.2. You can capture up to 200 values, if that's your thing.
 
-### TOC
+----
 
-* [Performance](#performance)
-* [Usage](#usage)
-* [Undefined Behavior](#undefined-behavior)
-* [TODO](#todo)
-* [License](#license)
-* [Notes](#notes)
+**Contents:** [Performance](#performance) — [Usage](#usage) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)
+
+----
 
 ## Performance
 
@@ -30,6 +27,8 @@ The micro-benchamrks (which double as unit tests) are there to help me ensure I'
 `/!\`: `strong` translates patterns to Lua functions, and caches the result. As a consequence, if you generate a lot of patterns dynamically, and seldom use them, `strong` will be much, much slower than the original. On the other hand, once a pattern has been compiled, matching only depends on the target string, whereas the reference functions have to dispatch on both the pattern and the target string. This allows LuaJIT to compile the matchers optimally.
 
 ## Usage
+
+You can use `strong.lua` standalone, the dependencies are optional, and only useful for development.
 
 ```Lua
 local strong = require"strong"
@@ -55,11 +54,13 @@ S:match"[^f]*" --> "oo", using `strong.match` rather than `string.match`
 
 ### Bad patterns
 
-`strong` validates the patterns before attempting a match, whereas Lua validates them on the go for example:
+`strong` validates the patterns before attempting a match, whereas Lua validates them on the go.
+
+For example:
 
 ```Lua
-string.find("ab", "b(") --> nil
-string.find("ba", "b(") --> error: unfinished capture
+string.find("ab", "^b(") --> nil
+string.find("ba", "^b(") --> error: unfinished capture
 ```
 
 `strong` will reject the pattern in both cases.
@@ -71,8 +72,8 @@ The interaction between character classes (`%d`) and character ranges (`a-z`) in
 Specifically with `strong`: 
 
 * When placed before the dash,
-** if `%x` is a character class (e.g. `%l` for lower case letters) `[%l-k]` is a character set containing digits (`%d`), `-` and `k`.
-** If %x is not a character class, the `%x` works as an escape sequence , and thus `[%%-x]` is the character range between `%` and `x`. [%0-\127] will match all ASCII characters.
+  * if `%x` is a character class (e.g. `%l` for lower case letters) `[%l-k]` is a character set containing digits (`%d`), `-` and `k`.
+  * If %x is not a character class, the `%x` works as an escape sequence , and thus `[%%-x]` is the character range between `%` and `x`. `[%0-\127]` will match all ASCII characters.
 * When the `%` occurs at the end of a character class, it is treated as itself. `[x-%d]` contains the character range between `x` and `%`, and the letter `d`. `[x--]` and `[x-]]` are accepted as ranges ending in `-` and `]`, respectively.
 
 ## TODO
