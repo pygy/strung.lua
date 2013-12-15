@@ -6,7 +6,7 @@ a rewrite of the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
 
 `strong.gsub` is yet to be written.
 
-For the null byte in patterns, `strong` suports both `"%z"`, like Lua 5.1 and "\0", like Lua 5.2. You can capture up to 200 values, if that's your thing.
+For the null byte in patterns, `strong` suports both `"%z"`, like Lua 5.1 and `"\0"`, like Lua 5.2. You can capture up to 200 values, if that's your thing.
 
 ----
 
