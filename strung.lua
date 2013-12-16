@@ -423,7 +423,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         goto suffix
       end
     else
-            if c == '$' and i == #pat then
+      if c == '$' and i == #pat then
         push(templates.dollar, data, buf,backbuf, ind)
         goto next
       end
@@ -434,16 +434,16 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
     goto next
     ::suffix::
     if i < len and C.strchr("+-*?", pat:byte(i+1)) ~= nil then -- suffixes
-            i = i + 1
+      i = i + 1
       c = pat:sub(i, i)
-            if c == "+" then 
+      if c == "+" then 
         push(templates.one, data, buf,backbuf, ind)
         c = "*"
       end
       push(templates[c], data, buf,backbuf, ind + (c == "?" and 0 or 1))
       ind = ind + 2
     else 
-            push(templates.one, data, buf,backbuf, ind)
+      push(templates.one, data, buf,backbuf, ind)
     end
     ::next::
     i = i + 1
@@ -470,7 +470,7 @@ end
 local capstpl = {"aux[auxlen + ", 2, "] == 4294967295 and aux[auxlen + ", 4, "] or subj:sub(aux[auxlen + ", 6, "], aux[auxlen + ", 8, "]) "}
 
 function compile (pat) -- local, declared above
-  local anchored = pat:sub(1,1) == "^" and true or false
+  local anchored = (pat:sub(1,1) == "^")
   local caps, sets = {open = 0}, {}
   local data = {}
   local buf, backbuf = {templates.head[1]}, {}
@@ -505,8 +505,6 @@ end
 
 ---- API ----
 
--- helper for debugging
-local function _wrp(ok, ...) assert(ok, ...) return ... end
 
 local function checki(i, subj)
   if not i then return 1 end
@@ -520,11 +518,8 @@ local function find(subj, pat, i, plain)
   if plain then 
     return hash_find(subj, pat, i)
   end
-  --[[
-  return _wrp(pcall(function()print("SOURCE", codecache[pat][3]); return codecache[pat][1](subj, pat, i, false, false) end))
-  --[=[ ]]
+  -- [[DBG]] print("SOURCE", codecache[pat][3])
   return codecache[pat][1](subj, pat, i, false, false)
-  --]=]
 end
 
 local function match(subj, pat, i, raw)
@@ -576,11 +571,8 @@ local function gmatch(subj, pat)
   local c = codecache[pat]
   local state = {c[1], subj, pat, 1, returning[bor(lshift(c[4], 8), c[2])]}
   -- see the returning __index fdefinition for the rationale for the bit twiddling.
-  --[[
-  return _wrp(pcall(function()print("SOURCE", codecache[pat][3]); return gmatch_iter, state end))
-  --[=[ ]]
+  -- [[DBG]]print("SOURCE", codecache[pat][3])
   return gmatch_iter, state
-  --]=]
 end
 
 local _gsub = setmetatable({
