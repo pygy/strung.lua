@@ -75,7 +75,6 @@ else
         for a, b, c, d, e, f in strung.gmatch(s, p) do
             ro[#ro + 1] = {a, b, c, d, e}
         end
-        print"Now string"
         for a, b, c, d, e, f in string.gmatch(s, p) do
             ri[#ri + 1] = {a, b, c, d, e}
         end
