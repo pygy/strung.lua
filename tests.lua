@@ -1,7 +1,7 @@
-local strong = require"strong"
+local strung = require"strung"
 
 --- First, the test and benchmark infrastructure.
---- `try` and `gmtry` run both the original and strong version of the functions, 
+--- `try` and `gmtry` run both the original and strung version of the functions, 
 --- and compare either their ouput, or their speed if "bench" is passed as a 
 --- parameter to the script.
 
@@ -23,10 +23,10 @@ if arg[1] == "bench" then
         tsi = os.clock() - tic
         local tic = os.clock()
         for i = 1, II do
-            Ro = {strong[f](a, s, d, g, h)}
+            Ro = {strung[f](a, s, d, g, h)}
         end
         tSo = os.clock() - tic
-        print("strong/string: ", tSo/tsi)
+        print("strung/string: ", tSo/tsi)
     end
     function gmtry(s, p)
         print(("-_"):rep(30))
@@ -35,7 +35,7 @@ if arg[1] == "bench" then
         local tic = os.clock()
         for i = 1, II do
             ro = {}
-            for a, b, c, d, e, f in strong.gmatch(s, p) do
+            for a, b, c, d, e, f in strung.gmatch(s, p) do
                 ro[#ro + 1] = {a, b, c, d, e}
             end
         end
@@ -48,7 +48,7 @@ if arg[1] == "bench" then
             end
         end
         local tSo = os.clock() - tic
-        print("strong/string: ", tSo/tsi)
+        print("strung/string: ", tSo/tsi)
     end
     function iter(n) II = BASE * n end
 else
@@ -58,10 +58,10 @@ else
         print(("-_"):rep(30))
         print("Test: ", f, ...)
         ri = {string[f](...)}
-        Ro = {strong[f](...)}
+        Ro = {strung[f](...)}
         for i, v in ipairs(params) do params[i] = tostring(v) end
         for i = 1, math.max(#ri, #Ro) do
-            strong.assert(ri[i] == Ro[i], params[2], table.concat({ 
+            strung.assert(ri[i] == Ro[i], params[2], table.concat({ 
                 table.concat(params, ", "), 
                 "ri:", table.concat(ri, ",  "), 
                 " \tRo:", table.concat(Ro, ", ")
@@ -72,18 +72,18 @@ else
         print(("-_"):rep(30))
         print("Test: ", "gmatch", s, p)
         local ri, ro = {}, {}
-        for a, b, c, d, e, f in strong.gmatch(s, p) do
+        for a, b, c, d, e, f in strung.gmatch(s, p) do
             ro[#ro + 1] = {a, b, c, d, e}
         end
         print"Now string"
         for a, b, c, d, e, f in string.gmatch(s, p) do
             ri[#ri + 1] = {a, b, c, d, e}
         end
-        strong.assert(#ro == #ri, p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrong:\n"..ttstr(ro))
+        strung.assert(#ro == #ri, p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
         for i = 1, #ro do
-        strong.assert(#ro[i] == #ri[i], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrong:\n"..ttstr(ro))
+        strung.assert(#ro[i] == #ri[i], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
             for j = 1, #ri[i] do
-                strong.assert(ri[i][j] == ro[i][j], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrong:\n"..ttstr(ro))
+                strung.assert(ri[i][j] == ro[i][j], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
             end
         end
     end
@@ -95,13 +95,13 @@ end
 
 local _f, _m, _gm, _gs = string.find, string.match, string.gmatch, string.gsub
 
-strong.install()
+strung.install()
 assert(
-    string.find == strong.find
-    and string.match == strong.match
-    and string.gmatch == strong.gmatch
-    --and string.gsub == strong.gsub
-    , "`strong.install()` failed.")
+    string.find == strung.find
+    and string.match == strung.match
+    and string.gmatch == strung.gmatch
+    --and string.gsub == strung.gsub
+    , "`strung.install()` failed.")
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub = _f, _m, _gm, _gs
 

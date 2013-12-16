@@ -581,7 +581,7 @@ end
 
 local _gsub = setmetatable({
   -- foo
-}, {__index = function(_, typ) error("strong.gsub can't handle replacement of type "..typ) end})
+}, {__index = function(_, typ) error("strung.gsub can't handle replacement of type "..typ) end})
 
 
 -- gsub helpers --
@@ -625,6 +625,6 @@ return {
   find = find,
   match = match,
   gmatch = gmatch,
-  gsub = function() error"strong.gsub: not yet implemented" end, --gsub,
+  gsub = function() error"strung.gsub: not yet implemented" end, --gsub,
   assert = _assert
 }
