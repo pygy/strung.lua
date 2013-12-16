@@ -51,6 +51,7 @@ if arg[1] == "bench" then
         print("strung/string: ", tSo/tsi)
     end
     function iter(n) II = BASE * n end
+    iter(10)
 else
     function try(f, ...)
         local params = {...}
@@ -105,7 +106,26 @@ assert(
 string.find, string.match, string.gmatch, string.gsub = _f, _m, _gm, _gs
 
 
-iter(10)
+try("find", "fof", "f", -4)
+try("find", "fof", "f", -3)
+try("find", "fof", "f", -2)
+try("find", "fof", "f", -1)
+
+try("find", "fof", "[^o]", -4)
+try("find", "fof", "[^o]", -3)
+try("find", "fof", "[^o]", -2)
+try("find", "fof", "[^o]", -1)
+
+try("match", "fof", "f", -4)
+try("match", "fof", "f", -3)
+try("match", "fof", "f", -2)
+try("match", "fof", "f", -1)
+
+try("match", "fof", "[^o]", -4)
+try("match", "fof", "[^o]", -3)
+try("match", "fof", "[^o]", -2)
+try("match", "fof", "[^o]", -1)
+
 
 gmtry('abcdabcdabcd', "((a)(b)c)()(d)")
 -- try("find", 'abcdabcdabcd', "((a)(b)c)()(d)")

@@ -64,10 +64,8 @@ local templates = {}
 templates.head = {[=[ 
 local bittest, aux, auxlen, anchored, expose = ...
 return function(subj, _, i, g_, match)
-  i = i or 1
   local len = #subj
   if i > len then return nil end
-  if i < 1 then i = 1 end
   local i0 = i - 1
   local c, open, close, diff
   repeat
@@ -186,7 +184,6 @@ local function hash_find (s, p, i) --
   local lp, ls = #p, #s
   if ls < lp then return nil end
   if p == s then return i, i + lp - 1 end
-  local i = 1
   local c = s_byte(p)
   p, lp = p:sub(2), lp -1
   local last = ls - lp
@@ -505,14 +502,21 @@ function compile (pat) -- local, declared above
   return {code, #caps/2, source, #sets*8 + #caps} -- TODO replace arbitrary indices with enum-like names (especially for querying later on).
 end
 
--- helper for debugging
-local function _wrp(ok, ...) assert(ok, ...) return ... end
-
 
 ---- API ----
 
+-- helper for debugging
+local function _wrp(ok, ...) assert(ok, ...) return ... end
+
+local function checki(i, subj)
+  if not i then return 1 end
+  if i < 0 then i = #subj + 1 + i end
+  if i < 1 then i = 1 end
+  return i
+end
+
 local function find(subj, pat, i, plain)
-  i = i or 1
+  i = checki(i, subj)
   if plain then 
     return hash_find(subj, pat, i)
   end
@@ -524,7 +528,7 @@ local function find(subj, pat, i, plain)
 end
 
 local function match(subj, pat, i, raw)
-  return codecache[pat][1](subj, pat, i, false, true)
+  return codecache[pat][1](subj, pat, checki(i, subj), false, true)
 end
 
 
