@@ -21,7 +21,7 @@ local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
-pcall(noglobals) -------------------------------------------------------------
+;(noglobals or type)("") -------------------------------------------------------------
 
 -- bit sets, code released by Mike Pall in the public domain.
 
