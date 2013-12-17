@@ -56,8 +56,8 @@ else
     function try(f, ...)
         local params = {...}
         local ri, Ros
-        print(("-_"):rep(30))
-        print("Test: ", f, ...)
+        -- print(("-_"):rep(30))
+        -- print("Test: ", f, ...)
         ri = {string[f](...)}
         Ro = {strung[f](...)}
         for i, v in ipairs(params) do params[i] = tostring(v) end
@@ -70,8 +70,8 @@ else
         end
     end
     function gmtry(s, p)
-        print(("-_"):rep(30))
-        print("Test: ", "gmatch", s, p)
+        -- print(("-_"):rep(30))
+        -- print("Test: ", "gmatch", s, p)
         local ri, ro = {}, {}
         for a, b, c, d, e, f in strung.gmatch(s, p) do
             ro[#ro + 1] = {a, b, c, d, e}
@@ -93,20 +93,18 @@ end
 
 --- The tests (in reverse order of complexity)
 
-local _f, _m, _gm, _gs = string.find, string.match, string.gmatch, string.gsub
+local _f, _m, _gm, _gs, _ol = string.find, string.match, string.gmatch, string.gsub, os.locale
 
 strung.install()
-    print(string.find == strung.find)
-   print(  string.match == strung.match)
-    print( string.gmatch == strung.gmatch)
 assert(
     string.find == strung.find
     and string.match == strung.match
     and string.gmatch == strung.gmatch
     --and string.gsub == strung.gsub
+    and os.locale == strung.locale
     , "`strung.install()` failed.")
 --restore the originals.
-string.find, string.match, string.gmatch, string.gsub = _f, _m, _gm, _gs
+string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
 
 try("find", "AAAAAA", "%f[%l]a")
 try("find", "AAAAAA", "%f[%l]")
@@ -265,3 +263,4 @@ try("find", "a", "a")
 
 
 
+if arg[1] ~= "bench" then print "ok" end

@@ -10,7 +10,7 @@ For the null byte in patterns, *strung* suports both `"%z"`, like Lua 5.1 and `"
 
 ----
 
-**Contents:** [Usage](#usage) — [Performance](#performance) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)
+**Contents:** [Usage](#usage) — [Performance](#performance) — [Locales](#locales) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)
 
 ----
 
@@ -47,6 +47,10 @@ You have'll to benchmark your peculiar use case to determine if *strung* improve
 In my microbenchmarks, depending on the kind of pattern, and on some luck regarding the JIT compiler heuristics [0], matching can be up to three times faster than the original. In other circumstances, for the same pattern, it can be up to three times slower. It is often on par.
 
 `/!\`: *strung* translates patterns to Lua functions, and caches the result. As a consequence, if you generate a lot of patterns dynamically, and seldom use them, *strung* will be much, much slower than the original. On the other hand, once a pattern has been compiled, matching only depends on the target string, whereas the reference functions have to dispatch on both the pattern and the target string. This allows LuaJIT to compile the matchers optimally.
+
+## Locales
+
+*strung* compiles character classes (`"%u"`) and character sets (`"[a-z]"`), and caches the result for each pattern the first time they match. These sets don't update if you change the locale after the fact. You must call `strung.reset()` in order to clear the caches for the locale change to take effect. `strung.setlocale()` is a drop in replacement for `os.setlocale()` that resets *strung*. If you `.install()` the library, `os.setlocale()` will be replaced automatically.
 
 ## Undefined behavior
 

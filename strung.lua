@@ -648,9 +648,13 @@ local function _assert(test, pat, msg)
 end
 
 -- reset the
-local _setlocale = function(l)
+local function reset ()
   codecache = setmetatable({}, getmettable(codecache))
-  return o_setlocale(l)
+  charclass = setmetatable({}, getmetatable(charclass))
+end
+local function setlocale (loc)
+  reset()
+  return o_setlocale(loc)
 end
 -------------------------------------------------------------------------------
 
@@ -660,12 +664,13 @@ return {
     s.match = match
     s.gmatch = gmatch
     -- s.gsub = gsub
-    os.setlocale = _setlocale
+    os.setlocale = setlocale
   end,
   find = find,
   match = match,
   gmatch = gmatch,
   gsub = function() error"strung.gsub: not yet implemented" end, --gsub,
-  setlocale = _setlocale,
+  reset = reset,
+  setlocale = setlocale,
   assert = _assert
 }
