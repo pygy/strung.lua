@@ -292,17 +292,16 @@ local function push (tpl, data, buf, backbuf, ind)
   end
 
 -- Character classes...
--- we cheat a bit, by declaring a bool return value, rather than an int.
 ffi.cdef[[
-  bool isalpha (char c);
-  bool iscntrl (char c);
-  bool isdigit (char c);
-  bool islower (char c);
-  bool ispunct (char c);
-  bool isspace (char c);
-  bool isupper (char c);
-  bool isalnum (char c);
-  bool isxdigit (char c);
+  int isalpha (int c);
+  int iscntrl (int c);
+  int isdigit (int c);
+  int islower (int c);
+  int ispunct (int c);
+  int isspace (int c);
+  int isupper (int c);
+  int isalnum (int c);
+  int isxdigit (int c);
 ]]
 
 local charclass = {}
@@ -317,7 +316,7 @@ for c, func in pairs{
 } do
   local cc0, cc1 = ffi.new('uint32_t[8]'), ffi.new('uint32_t[8]')
   for i = 0, 255 do
-    if C[func](i) then
+    if C[func](i) ~= 0 then
       bitset(cc0, i)
     else
       bitset(cc1, i)
