@@ -40,8 +40,10 @@ end
 -- pseudo-enum, just for the kicks. This might as well be a Lua table.
 ffi.cdef[[
 struct placeholder {
+  static const int POS = 1;
   static const int VAL = 2;
   static const int INV = 2;
+  static const int NEG = 3;
   static const int SET = 4;
   static const int UNTIL = 5;
   static const int FRETCAPS = 6;
@@ -67,7 +69,7 @@ return function(subj, _, i, g_, match)
   local len = #subj
   if i > len then return nil end
   local i0 = i - 1
-  local c, open, close, diff
+  local c, open, close, diff, previous
   repeat
     i0 = i0 + 1
     repeat
@@ -150,8 +152,15 @@ templates.ballanced = {[[
   if not c then i = false; break end
   i = i + 1]]
 }
-templates.frontier = {
-  TODO = true
+templates.frontier = {[[ 
+  if i == 1 then
+    i =  ((i <= len) and ]], P.POS, [[ bittest(aux, ]], P.SET, [[ + subj:byte(i))) and i
+  else
+    i = ((i <= len) and ]], P.POS, [[ bittest(aux, ]], P.SET, [[ + subj:byte(i))) 
+    and ((i <= len) and ]], P.NEG, [[ bittest(aux, ]], P.SET, [[ + subj:byte(i-1)))
+    and i
+  end
+  if not i then break end]]
 }
 templates.poscap = {[[ 
   aux[auxlen + ]], P.OPEN, [[] = i
@@ -351,7 +360,7 @@ local function makecs(pat, i, sets)
     sets[#sets + 1] = cs
     sets[k]  = #sets
   end
-  return inv and "not" or "", (sets[k] - 1) * 256, cl
+  return inv, (sets[k] - 1) * 256, cl
 end
 
 ffi.cdef[[const char * strchr ( const char * str, int character );]]
@@ -393,7 +402,9 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       data[P.TEST] = templates.any[1]
       goto suffix
     elseif c == "[" then
-      templates.set[P.INV], templates.set[P.SET], i = makecs(pat, i+1, sets)
+      local inv
+      inv, templates.set[P.SET], i = makecs(pat, i+1, sets)
+      templates.set[P.INV] = inv and "not" or ""
       data[P.TEST] = t_concat(templates.set)
       goto suffix
     elseif c == "%" then
@@ -414,8 +425,13 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         data[P.OPEN], data[P.CLOSE] = pat:byte(i + 1, i + 2)
         i = i + 2
         push(templates.ballanced, data, buf, backbuf, ind)
-      elseif c == 'f' then 
-        error"frontier pattern, not yet implemented."
+      elseif c == 'f' then
+        if pat:sub(i+1, i +1) ~= '[' then error"missing '['' after '%f' in pattern" end
+        local inv, set_i
+        inv, data[P.SET], i = makecs(pat, i+1, sets)
+        data[P.POS] = inv and "not" or ""
+        data[P.NEG] = inv and "" or "not"
+        push(templates.frontier, data, buf, backbuf, ind)
       else
         if c == 'z'then c = '\0' end
         templates.char[P.VAL] = c:byte()

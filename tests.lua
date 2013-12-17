@@ -105,6 +105,14 @@ assert(
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub = _f, _m, _gm, _gs
 
+try("find", "AAAAAA", "%f[%l]a")
+try("find", "AAAAAA", "%f[%l]")
+try("find", "aAaAb", "%f[%l]a", 2)
+try("find", "aAaAb", "%f[%l]a")
+try("find", "aAaAb", "%f[%l]a", 4)
+try("find", "AaAb", "%f[%l]a")
+try("find", "aAb", "%f[%l]b")
+try("find", "aAb", "%f[%l]a")
 
 try("find", "fof", "f", -4)
 try("find", "fof", "f", -3)
