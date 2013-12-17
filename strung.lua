@@ -1,5 +1,6 @@
 -- strung.lua, a rewrite of the Lua string patterns in Lua + FFI, for LuaJIT
 -- Copyright (C) 2013 Pierre-Yves Gérardy
+-- MIT licensed (see the LICENSE file for the detais).
 --
 -- strung compiles patterns to Lua functions, asssociated with an FFI array 
 -- holding bit sets, for the character sets (`[...]`) and classes (`%x`), and
