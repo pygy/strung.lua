@@ -10,21 +10,9 @@ For the null byte in patterns, `strung` suports both `"%z"`, like Lua 5.1 and `"
 
 ----
 
-**Contents:** [Performance](#performance) — [Usage](#usage) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)
+**Contents:** [Usage](#usage) — [Performance](#performance) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)
 
 ----
-
-## Performance
-
-The standard string matching functions in LuaJIT, as of 2013-12-13, use the Lua API, and, as such, cause the compiler to abbort if they are in the way. Their `strung` counterpart can be compiled, and included in traces if they are in a hot path.
-
-You have'll to benchmark your peculiar use case to determine if `strung` improves the global performance of your program. 
-
-In my microbenchmarks, depending on the kind of pattern, and on some luck regarding the JIT compiler heuristics [0], matching can be up to three times faster than the original. In other circumstances, for the same pattern, it can be up to three times slower. It is often on par.
-
-The micro-benchamrks (which double as unit tests) are there to help me ensure I'm not preventing LuaJIT from compiling the patterns, and to get a rough idea of the general performance.
-
-`/!\`: `strung` translates patterns to Lua functions, and caches the result. As a consequence, if you generate a lot of patterns dynamically, and seldom use them, `strung` will be much, much slower than the original. On the other hand, once a pattern has been compiled, matching only depends on the target string, whereas the reference functions have to dispatch on both the pattern and the target string. This allows LuaJIT to compile the matchers optimally.
 
 ## Usage
 
@@ -49,6 +37,18 @@ S = "foo"
 
 S:match"[^f]*" --> "oo", using `strung.match` rather than `string.match`
 ```
+
+## Performance
+
+The standard string matching functions in LuaJIT, as of 2013-12-13, use the Lua API, and, as such, cause the compiler to abbort if they are in the way. Their `strung` counterpart can be compiled, and included in traces if they are in a hot path.
+
+You have'll to benchmark your peculiar use case to determine if `strung` improves the global performance of your program. 
+
+In my microbenchmarks, depending on the kind of pattern, and on some luck regarding the JIT compiler heuristics [0], matching can be up to three times faster than the original. In other circumstances, for the same pattern, it can be up to three times slower. It is often on par.
+
+The micro-benchamrks (which double as unit tests) are there to help me ensure I'm not preventing LuaJIT from compiling the patterns, and to get a rough idea of the general performance.
+
+`/!\`: `strung` translates patterns to Lua functions, and caches the result. As a consequence, if you generate a lot of patterns dynamically, and seldom use them, `strung` will be much, much slower than the original. On the other hand, once a pattern has been compiled, matching only depends on the target string, whereas the reference functions have to dispatch on both the pattern and the target string. This allows LuaJIT to compile the matchers optimally.
 
 ## Undefined behavior
 
