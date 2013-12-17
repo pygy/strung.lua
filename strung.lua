@@ -20,11 +20,15 @@ pcall(function() -- used only for development.
   expose, noglobals = _u.expose, _u.noglobals
 end)
 
-local _s, _t = require"string", require"table"
+local os, s, t = require"os", require"string", require"table"
 
-local s_byte, s_char, s_find, s_gmatch, s_sub, s_match = _s.byte, _s.char, _s.find, _s.gmatch, _s.sub, _s.match
+local s_byte, s_char, s_find, s_gmatch, s_sub, s_match 
+    = s.byte, s.char, s.find, s.gmatch, s.sub, s.match
 
-local t_concat, t_insert, t_remove = _t.concat, _t.insert, _t.remove
+local t_concat, t_insert, t_remove
+    = t.concat, t.insert, t.remove
+
+local o_setlocale = os.setlocale
 
 local ffi = require"ffi"
 local C = ffi.C
@@ -304,16 +308,17 @@ ffi.cdef[[
   int isxdigit (int c);
 ]]
 
-local charclass = {}
-local allchars = {}; for i = 0, 255 do
-    allchars[i] = s_char(i)
-end
 
-for c, func in pairs{
+local ccref = {
     a = "isalpha", c = "iscntrl", d = "isdigit",
     l = "islower", p = "ispunct", s = "isspace",
     u = "isupper", w = "isalnum", x = "isxdigit"
-} do
+} 
+local allchars = {}; for i = 0, 255 do
+    allchars[i] = s_char(i)
+end
+local charclass = setmetatable({}, {__index = function(self, c)
+  local func = ccref[c:lower()]
   local cc0, cc1 = ffi.new('uint32_t[8]'), ffi.new('uint32_t[8]')
   for i = 0, 255 do
     if C[func](i) ~= 0 then
@@ -322,9 +327,11 @@ for c, func in pairs{
       bitset(cc1, i)
     end
   end 
-  charclass[c] = cc0
-  charclass[c:upper()] = cc1
-end
+  self[c:lower()] = cc0
+  self[c:upper()] = cc1
+  return self[c]
+end})
+
 
 local function key (cs)
   return t_concat({cs[0], cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7]}, ":")
@@ -428,7 +435,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       i = i + 1
       c = pat:sub(i, i)
       if not c then error"malformed pattern (ends with '%')" end
-      if C.strchr("acdlpsuwx", bor(c:byte(), 0x20)) ~= nil then
+      if C.strchr("acdlpsuwx", c:lower():byte()) ~= nil then -- a character class
         templates.set[P.INV], templates.set[P.SET] = makecc(pat, i, sets)
                 data[P.TEST] = t_concat(templates.set)
         goto suffix
@@ -639,18 +646,26 @@ local function _assert(test, pat, msg)
     error()
   end
 end
+
+-- reset the
+local _setlocale = function(l)
+  codecache = setmetatable({}, getmettable(codecache))
+  return o_setlocale(l)
+end
 -------------------------------------------------------------------------------
 
 return {
   install = function()
-    _s.find = find
-    _s.match = match
-    _s.gmatch = gmatch
-    -- _s.gsub = gsub
+    s.find = find
+    s.match = match
+    s.gmatch = gmatch
+    -- s.gsub = gsub
+    os.setlocale = _setlocale
   end,
   find = find,
   match = match,
   gmatch = gmatch,
   gsub = function() error"strung.gsub: not yet implemented" end, --gsub,
+  setlocale = _setlocale,
   assert = _assert
 }

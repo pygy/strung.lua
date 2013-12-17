@@ -96,6 +96,9 @@ end
 local _f, _m, _gm, _gs = string.find, string.match, string.gmatch, string.gsub
 
 strung.install()
+    print(string.find == strung.find)
+   print(  string.match == strung.match)
+    print( string.gmatch == strung.gmatch)
 assert(
     string.find == strung.find
     and string.match == strung.match
