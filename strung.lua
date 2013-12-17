@@ -104,11 +104,9 @@ end]]
 local capstpl = {
   "aux[auxlen + ", 2, "] == 4294967295 and aux[auxlen + ", 4, "] or subj:sub(aux[auxlen + ", 6, "], aux[auxlen + ", 8, "]) "
 }
-
 templates.one = {[[ 
   i = (]], P.TEST, [[) and i + 1
   if not i then break end]]
-
 }
 templates['*'] = {[=[ 
     local i0, i1 = i
@@ -202,7 +200,8 @@ templates.close = {[[
   if i ~= #subj + 1 then i = false end]]
 }
 
-local compile
+
+---- Simple pattern compiler ----
 
 local function hash_find (s, p, i) --
   if p == "" then return i end
@@ -249,6 +248,9 @@ local function normal(s)
 end
 
 
+---- Main pattern compiler ---
+
+local --[[function]] compile 
 
 --- The cache for the compiled pattern matchers.
 local codecache = setmetatable({}, {
@@ -262,7 +264,6 @@ local codecache = setmetatable({}, {
 })
 
 local function indent(i, s) return tostring(s):gsub('\n', '\n'..("  "):rep(i*2)) end
-
 
 --- Push the template parts in two buffers.
 local function push (tpl, data, buf, backbuf, ind)
@@ -534,7 +535,6 @@ end
 
 
 ---- API ----
-
 
 local function checki(i, subj)
   if not i then return 1 end
