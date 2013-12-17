@@ -50,7 +50,7 @@ In my microbenchmarks, depending on the kind of pattern, and on some luck regard
 
 ## Undefined behavior
 
-### Frontier Pattern
+### The Frontier Pattern (`%f[...]`)
 
 Officially does not exist. Or does it? [1]
 
