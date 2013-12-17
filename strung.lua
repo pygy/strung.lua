@@ -1,5 +1,16 @@
-local assert, error, ipairs, loadstring, pairs, print, rawset, require, setmetatable, tonumber, tostring, type, pcall
-    = assert, error, ipairs, loadstring, pairs, print, rawset, require, setmetatable, tonumber, tostring, type, pcall
+-- strung.lua, a rewrite of the Lua string patterns in Lua + FFI, for LuaJIT
+-- Copyright (C) 2013 Pierre-Yves Gérardy
+--
+-- strung compiles patterns to Lua functions, asssociated with an FFI array 
+-- holding bit sets, for the character sets (`[...]`) and classes (`%x`), and
+-- slots for the capture bounds. This array is allocated once at pattern
+-- compile time, and reused for each matching attempt, minimizing memory
+-- pressure.
+
+local assert, error, ipairs, loadstring, pairs, print, rawset
+    , require, setmetatable, tonumber, tostring, type, pcall
+    = assert, error, ipairs, loadstring, pairs, print, rawset
+    , require, setmetatable, tonumber, tostring, type, pcall
 
 local _u, expose, noglobals
 
@@ -59,10 +70,11 @@ local P = ffi.new"struct placeholder"
 
 local g_i, g_subj, g_ins, g_start, g_end
 
-local templates = {}
-
 -- patterns are compiled to Lua by stitching these:
 
+local templates = {}
+
+-- aux is the FFI array holding bit sets and capture bounds.
 templates.head = {[=[ 
 local bittest, aux, auxlen, anchored, expose = ...
 return function(subj, _, i, g_, match)
@@ -89,6 +101,10 @@ templates.tail = {[=[
   end
 end]]
 }
+local capstpl = {
+  "aux[auxlen + ", 2, "] == 4294967295 and aux[auxlen + ", 4, "] or subj:sub(aux[auxlen + ", 6, "], aux[auxlen + ", 8, "]) "
+}
+
 templates.one = {[[ 
   i = (]], P.TEST, [[) and i + 1
   if not i then break end]]
@@ -482,8 +498,6 @@ local function pack (sets, ncaps)
   end
       return res, len
 end
-
-local capstpl = {"aux[auxlen + ", 2, "] == 4294967295 and aux[auxlen + ", 4, "] or subj:sub(aux[auxlen + ", 6, "], aux[auxlen + ", 8, "]) "}
 
 function compile (pat) -- local, declared above
   local anchored = (pat:sub(1,1) == "^")
