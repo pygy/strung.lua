@@ -402,7 +402,6 @@ local function suffix(i, ind, len, pat, data, buf, backbuf)
     push(templates.one, data, buf,backbuf, ind)
     return i - 1, ind
   end
-  --[[DBG]] print("suffix: ", c)
   if c == "+" then 
     push(templates.one, data, buf,backbuf, ind)
     c = "*"
