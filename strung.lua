@@ -8,10 +8,10 @@
 -- compile time, and reused for each matching attempt, minimizing memory
 -- pressure.
 
-local assert, error, ipairs, loadstring, pairs, print, rawset
-    , require, setmetatable, tonumber, tostring, type, pcall
-    = assert, error, ipairs, loadstring, pairs, print, rawset
-    , require, setmetatable, tonumber, tostring, type, pcall
+local assert, error, getmetatable, ipairs, loadstring, pairs, print
+    , rawset, require, setmetatable, tonumber, tostring, type, pcall
+    = assert, error, getmetatable, ipairs, loadstring, pairs, print
+    , rawset, require, setmetatable, tonumber, tostring, type, pcall
 
 local _u, expose, noglobals
 
@@ -389,6 +389,28 @@ end
 
 ffi.cdef[[const char * strchr ( const char * str, int character );]]
 
+local suffixes = {
+  ["*"] = true,
+  ["+"] = true,
+  ["-"] = true,
+  ["?"] = true
+}
+
+local function suffix(i, ind, len, pat, data, buf, backbuf)
+  local c = pat:sub(i, i)
+  if not suffixes[c] then
+    push(templates.one, data, buf,backbuf, ind)
+    return i - 1, ind
+  end
+  --[[DBG]] print("suffix: ", c)
+  if c == "+" then 
+    push(templates.one, data, buf,backbuf, ind)
+    c = "*"
+  end
+  push(templates[c], data, buf,backbuf, ind + (c == "?" and 0 or 1))
+  return i, ind + 2
+end
+
 local function _compile(pat, i, caps, sets, data, buf, backbuf)
     local len = #pat
   local ind = 1
@@ -424,21 +446,21 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       push(templates.close, data, buf,backbuf, ind)
     elseif  c == '.' then 
       data[P.TEST] = templates.any[1]
-      goto suffix
+      i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
     elseif c == "[" then
       local inv
       inv, templates.set[P.SET], i = makecs(pat, i+1, sets)
       templates.set[P.INV] = inv and "not" or ""
       data[P.TEST] = t_concat(templates.set)
-      goto suffix
+      i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
     elseif c == "%" then
       i = i + 1
       c = pat:sub(i, i)
       if not c then error"malformed pattern (ends with '%')" end
-      if C.strchr("acdlpsuwx", c:lower():byte()) ~= nil then -- a character class
+      if ccref[c:lower()] then -- a character class
         templates.set[P.INV], templates.set[P.SET] = makecc(pat, i, sets)
                 data[P.TEST] = t_concat(templates.set)
-        goto suffix
+      i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
       elseif "1" <= c and c <= "9" then
         local n = tonumber(c) * 2
         if n > #caps then error"attempt to reference a non-existing capture" end
@@ -460,32 +482,17 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         if c == 'z'then c = '\0' end
         templates.char[P.VAL] = c:byte()
         data[P.TEST] = t_concat(templates.char)
-        goto suffix
+        i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
       end
     else
       if c == '$' and i == #pat then
         push(templates.dollar, data, buf,backbuf, ind)
-        goto next
+      else
+        templates.char[P.VAL] = c:byte()
+        data[P.TEST] = t_concat(templates.char)
+        i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
       end
-      templates.char[P.VAL] = c:byte()
-      data[P.TEST] = t_concat(templates.char)
-      goto suffix
     end
-    goto next
-    ::suffix::
-    if i < len and C.strchr("+-*?", pat:byte(i+1)) ~= nil then -- suffixes
-      i = i + 1
-      c = pat:sub(i, i)
-      if c == "+" then 
-        push(templates.one, data, buf,backbuf, ind)
-        c = "*"
-      end
-      push(templates[c], data, buf,backbuf, ind + (c == "?" and 0 or 1))
-      ind = ind + 2
-    else 
-      push(templates.one, data, buf,backbuf, ind)
-    end
-    ::next::
     i = i + 1
     c = pat:sub(i, i)
   end ---- /while
@@ -608,6 +615,7 @@ local function gmatch(subj, pat)
   local c = codecache[pat]
   local state = {c[1], subj, pat, 1, returning[bor(lshift(c[4], 8), c[2])]}
   -- see the returning __index fdefinition for the rationale for the bit twiddling.
+  -- [[DBG]]print("PAT", pat)
   -- [[DBG]]print("SOURCE", codecache[pat][3])
   return gmatch_iter, state
 end
