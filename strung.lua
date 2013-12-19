@@ -670,9 +670,9 @@ local function reset ()
   codecache = setmetatable({}, getmetatable(codecache))
   charclass = setmetatable({}, getmetatable(charclass))
 end
-local function setlocale (loc)
+local function setlocale (loc, mode)
   reset()
-  return o_setlocale(loc)
+  return o_setlocale(loc, mode)
 end
 -------------------------------------------------------------------------------
 
