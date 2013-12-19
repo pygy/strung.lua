@@ -70,8 +70,7 @@ else
         end
     end
     function gmtry(s, p)
-        -- print(("-_"):rep(30))
-        -- print("Test: ", "gmatch", s, p)
+        local desc = "Test:  gmatch ".. s .." -- ".. p
         local ri, ro = {}, {}
         for a, b, c, d, e, f in strung.gmatch(s, p) do
             ro[#ro + 1] = {a, b, c, d, e}
@@ -79,11 +78,11 @@ else
         for a, b, c, d, e, f in string.gmatch(s, p) do
             ri[#ri + 1] = {a, b, c, d, e}
         end
-        strung.assert(#ro == #ri, p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
+        strung.assert(#ro == #ri, p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
         for i = 1, #ro do
-        strung.assert(#ro[i] == #ri[i], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
+        strung.assert(#ro[i] == #ri[i], p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
             for j = 1, #ri[i] do
-                strung.assert(ri[i][j] == ro[i][j], p, "string: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
+                strung.assert(ri[i][j] == ro[i][j], p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
             end
         end
     end
@@ -91,7 +90,31 @@ else
 end
 
 
---- The tests (in reverse order of complexity)
+--- Character classes and locales ---
+
+local allchars do
+    local acc = {}
+    for i = 0, 255 do acc[i+1] = string.char(i) end
+    allchars = table.concat(acc)
+end
+
+-- try("find", allchars, "a")
+-- try("find", allchars, "%a+")
+-- gmtry(allchars, "%a+")
+
+for _, locale in ipairs{
+    -- let this out for now, LJ character classes are not sensitive to os.setlocale()
+    -- "fr_FR",
+    "C"
+} do
+    -- print("LOCALE: ", strung.setlocale(locale))
+    for c in ("acdlpsuwx"):gmatch"." do
+        gmtry(allchars, "%"..c.."+")
+        gmtry(allchars, "%"..c:upper().."+")
+    end
+end
+
+--- .install() ---
 
 local _f, _m, _gm, _gs, _ol = string.find, string.match, string.gmatch, string.gsub, os.locale
 
@@ -106,6 +129,10 @@ assert(
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
 
+--- The tests (in reverse order of complexity)
+
+--- %f ---
+
 try("find", "AAAAAA", "%f[%l]a")
 try("find", "AAAAAA", "%f[%l]")
 try("find", "aAaAb", "%f[%l]a", 2)
@@ -114,6 +141,9 @@ try("find", "aAaAb", "%f[%l]a", 4)
 try("find", "AaAb", "%f[%l]a")
 try("find", "aAb", "%f[%l]b")
 try("find", "aAb", "%f[%l]a")
+
+
+--- negative indices ---
 
 try("find", "fof", "f", -4)
 try("find", "fof", "f", -3)
@@ -135,6 +165,7 @@ try("match", "fof", "[^o]", -3)
 try("match", "fof", "[^o]", -2)
 try("match", "fof", "[^o]", -1)
 
+--- gmatch ---
 
 gmtry('abcdabcdabcd', "((a)(b)c)()(d)")
 -- try("find", 'abcdabcdabcd', "((a)(b)c)()(d)")
@@ -146,6 +177,7 @@ gmtry('abcabcabc', "(a)(b)")
 gmtry('abcabcabc', "(ab)")
 
 iter(10)
+--- bug fix ---
 
 try("match", "faa:foo:", "(.+):(%l+)")
 try("match", ":foo:", "(%l*)")
@@ -156,10 +188,14 @@ try("match", ":foo:", "(%l+)")
 try("match", "foo", "%l+")
 try("match", "foo", "foo")
 
+--- anchored patterns ---
+
 try("find", "wwS", "^wS", 2)
 try("find", "wwS", "^wS")
 try("find", "wwS", "^ww", 2)
 try("find", "wwS", "^ww")
+
+--- %b ---
 
 try("find", "a(f()g(h(d d))[[][]]K)", "%b()%b[]", 3)
 try("find", "a(f()g(h(d d))[[][]]K)", "%b()%b[]", 2)
@@ -172,6 +208,8 @@ try("find", "foobarbar", "(foo)(bar)%2")
 try("find", "foobarfoo", "(foo)(bar)%2")
 try("find", "foobarfoo", "(foo)(bar)%1")
 try("find", "foobarfoo", "(foo)bar%1")
+
+--- Captures ---
 
 try("find", "wwS", "((w*)S)")
 try("find", "wwwwS", "((w*)%u)")
@@ -187,6 +225,9 @@ try("find", "wwS", "((%l*))")
 
 
 try("find", "wwSS", "()(%u+)()")
+
+--- Character sets  ---
+
 try("find", "wwwwwwS", "[^%u]*")
 try("find", "wwwwwwS", "[^%u]")
 try("find", "wwwwwwS", "(%l*)")
@@ -210,14 +251,20 @@ try("find", "wwwwwwS", "[^kfdS]*")
 try("find", "wwS", "%l*()")
 try("find", "wwS", "()%u+")
 
+--- escape sequeces ---
+
 try("find", "w(wSESDFB)SFwe)fwe", "%(.-%)")
 try("find", "w(wSESDFB)SFwe)fwe", "%(.*%)")
+
+--- Basic patterns ---
 
 try("find", "wawSESDFB)SFweafwe", "a.-a")
 try("find", "wawSESDFBaSFwe)fwe", "a.*a")
 
 try("find", "a", ".")
 try("find", "a6ruyfhjgjk9", ".+")
+
+
 
 try("find", "wawSESDFBaSFwe)fwe", "a[A-Za-z]*a")
 

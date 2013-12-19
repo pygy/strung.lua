@@ -64,10 +64,11 @@ struct placeholder {
   static const int UNTIL = 5;
   static const int FRETCAPS = 6;
   static const int MRETCAPS = 7;
-  static const int TEST = 8;
-  static const int NEXT = 9;
-  static const int OPEN = 10;
-  static const int CLOSE = 11;
+  static const int GRETCAPS = 8;
+  static const int TEST = 9;
+  static const int NEXT = 10;
+  static const int OPEN = 11;
+  static const int CLOSE = 12;
 }
 ]]
 
@@ -98,13 +99,13 @@ templates.tail = {[=[
     if not i then return nil end
   i = i - 1
   if g_ then --gsub/gmatch
-    return i0, i, aux
+    return i0, i]=], P.GRETCAPS, [=[ 
   elseif match then
-    return ]=], P.MRETCAPS, [[ 
+    return ]=], P.MRETCAPS, [=[ 
   else -- find
-    return ]], P.FRETCAPS, [[ 
+    return ]=], P.FRETCAPS, [=[ 
   end
-end]]
+end]=]
 }
 local capstpl = {
   "aux[auxlen + ", 2, "] == 4294967295 and aux[auxlen + ", 4, "] or subj:sub(aux[auxlen + ", 6, "], aux[auxlen + ", 8, "]) "
@@ -239,7 +240,7 @@ local function simplewrp(s, p, i, _g, match)
   end
 end
 
-local function simple(pat) return {simplewrp, 0, "simple"} end
+local function simple(pat) return {simplewrp, 0, "simple", 0} end
 
 local specials = {} for _, c in ipairs{"^", "$", "*", "+", "?", ".", "(", "[", "%", "-"} do
   specials[c:byte()] = true
@@ -513,6 +514,14 @@ local function pack (sets, ncaps)
       return res, len
 end
 
+ffi.cdef[[
+struct M {
+  static const int CODE = 1;
+  static const int NCAPS = 2;
+  static const int SOURCE = 3;
+  static const int AUXLEN = 4;
+}]] local M = ffi.new"struct M"
+
 function compile (pat) -- local, declared above
   local anchored = (pat:sub(1,1) == "^")
   local caps, sets = {open = 0}, {}
@@ -533,8 +542,10 @@ function compile (pat) -- local, declared above
       rc[#rc + 1] = t_concat(capstpl)
     end
     data[P.MRETCAPS] = t_concat(rc, ", ")
+    data[P.GRETCAPS] = ", aux"
   else
     data[P.MRETCAPS] = "subj:sub(i0, i)"
+    data[P.GRETCAPS] = ""
   end
   t_insert(rc, 1, "i0, i") -- for find, prepend the bounds of the match
   data[P.FRETCAPS] = t_concat(rc, ", ")
@@ -543,7 +554,7 @@ function compile (pat) -- local, declared above
   local loader, err = loadstring(source)
   if not loader then print(source,"\nERROR:\n", err); error() end
   local code = loader(bittest, aux, auxlen, anchored, expose) -- TODO move the anchored decision to the compiler rather than target code.
-  return {code, #caps/2, source, #sets*8 + #caps} -- TODO replace arbitrary indices with enum-like names (especially for querying later on).
+  return {code, #caps/2, source, auxlen} -- TODO replace arbitrary indices with enum-like names (especially for querying later on).
 end
 
 
@@ -561,12 +572,12 @@ local function find(subj, pat, i, plain)
   if plain then 
     return hash_find(subj, pat, i)
   end
-  -- [[DBG]] print("SOURCE", codecache[pat][3])
-  return codecache[pat][1](subj, pat, i, false, false)
+  -- [[DBG]] print("SOURCE", codecache[pat][M.SOURCE])
+  return codecache[pat][M.CODE](subj, pat, i, false, false)
 end
 
 local function match(subj, pat, i, raw)
-  return codecache[pat][1](subj, pat, checki(i, subj), false, true)
+  return codecache[pat][M.CODE](subj, pat, checki(i, subj), false, true)
 end
 
 
@@ -612,10 +623,10 @@ end
 
 local function gmatch(subj, pat)
   local c = codecache[pat]
-  local state = {c[1], subj, pat, 1, returning[bor(lshift(c[4], 8), c[2])]}
-  -- see the returning __index fdefinition for the rationale for the bit twiddling.
+  local state = {c[M.CODE], subj, pat, 1, returning[bor(lshift(c[M.AUXLEN], 8), c[M.NCAPS])]}
+  -- see the returning .__index definition for the rationale for the bit twiddling.
   -- [[DBG]]print("PAT", pat)
-  -- [[DBG]]print("SOURCE", codecache[pat][3])
+  -- [[DBG]]print("SOURCE", codecache[pat][M.SOURCE])
   return gmatch_iter, state
 end
 
@@ -656,7 +667,7 @@ end
 
 -- reset the
 local function reset ()
-  codecache = setmetatable({}, getmettable(codecache))
+  codecache = setmetatable({}, getmetatable(codecache))
   charclass = setmetatable({}, getmetatable(charclass))
 end
 local function setlocale (loc)
