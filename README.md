@@ -86,6 +86,7 @@ Specifically with *strung*:
 
 * `strung.gsub`
 * Boyer Moore for the simple string search?
+* Document ? limitation (and remove one local if possible).
 
 ## License
 
