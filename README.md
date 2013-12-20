@@ -8,6 +8,8 @@ a rewrite of the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
 
 For the null byte in patterns, *strung* suports both `"%z"`, like Lua 5.1 and `"\0"`, like Lua 5.2. You can capture up to 200 values, if that's your thing.
 
+Like Lua 5.1, and unlike Lua 5.2 and LuaJIT 2.0+, *strung* character classes (`%l`, `%u`, etc.) are locale sensitive.
+
 ----
 
 **Contents:** [Usage](#usage) — [Performance](#performance) — [Locales](#locales) — [Undefined Behavior](#undefined-behavior) — [TODO](#todo) — [License](#license) — [Notes](#notes)

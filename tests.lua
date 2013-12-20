@@ -50,6 +50,7 @@ if arg[1] == "bench" then
         local tSo = os.clock() - tic
         print("strung/string: ", tSo/tsi)
     end
+    function gmtry()end
     function iter(n) II = BASE * n end
     iter(10)
 else
@@ -87,7 +88,9 @@ else
         end
     end
     iter = function()end
+    gmtry = iter
 end
+
 
 
 --- Character classes and locales ---
@@ -132,11 +135,11 @@ string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, 
 --- The tests (in reverse order of complexity)
 
 --- %f ---
-try("find", "a", "a?a")
+-- try("find", "a", "a?a")
 
-try("find", "AAAAAA", "%f[%l]a")
-try("find", "AAAAAA", "%f[%l]")
-try("find", "aAaAb", "%f[%l]a", 2)
+-- try("find", "AAAAAA", "%f[%l]a")
+-- try("find", "AAAAAA", "%f[%l]")
+-- try("find", "aAaAb", "%f[%l]a", 2)
 try("find", "aAaAb", "%f[%l]a")
 try("find", "aAaAb", "%f[%l]a", 4)
 try("find", "AaAb", "%f[%l]a")
