@@ -146,7 +146,18 @@ templates['-'] = {[[
   if not i then break end]]
 }
 templates["?"] = {[[ 
-  if ]], P.TEST, [[ then i = i + 1 end]]
+  do 
+    local _i, q = i
+    if ]], P.TEST, [[ then q = true; i = i + 1 end
+    goto first
+    ::second::
+    i = _i
+    ::first::
+    repeat]],
+      P.NEXT, [[ 
+    break until true
+    if not i and q then q = false; goto second end
+  end]]
 }
 templates.char = {[[subj:byte(i) == ]], P.VAL}
 templates.any = {[[i <= len]]}

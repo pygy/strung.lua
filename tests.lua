@@ -132,6 +132,7 @@ string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, 
 --- The tests (in reverse order of complexity)
 
 --- %f ---
+try("find", "a", "a?a")
 
 try("find", "AAAAAA", "%f[%l]a")
 try("find", "AAAAAA", "%f[%l]")
