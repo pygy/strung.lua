@@ -85,7 +85,6 @@ local templates = {}
 templates.head = {[=[
 local bittest, charsets, caps, qstn, anchored, expose = ...
 return function(subj, _, i, g_, match)
--- [[]] print("MATCHING, pat, subj, anchored, g_, match, i:", _, subj, anchored, g_, match, i)
   local len = #subj
   if i > len then return nil end
   local i0 = i - 1
