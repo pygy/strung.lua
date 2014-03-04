@@ -132,6 +132,10 @@ assert(
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
 
+assert(strung.find("\0", "\0"), "'\\0' pattern failed to match.")
+assert(strung.find("\0", "[\0]"), "'\\0' pattern failed to match in charset.")
+try("find", "\0", "%z")
+try("find", "\0", "[%z]")
 
 try("find", "", "[%z]")
 
