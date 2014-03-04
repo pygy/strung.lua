@@ -132,6 +132,9 @@ assert(
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
 
+
+try("find", "", "[%z]")
+
 --- The tests (in reverse order of complexity)
 
 --- %f ---

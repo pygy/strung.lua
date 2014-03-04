@@ -332,6 +332,7 @@ local allchars = {}; for i = 0, 255 do
 end
 local charclass = setmetatable({}, {__index = function(self, c)
   local func = ccref[c:lower()]
+  if not func then return nil end
   local cc0, cc1 = ffi.new('uint32_t[8]'), ffi.new('uint32_t[8]')
   for i = 0, 255 do
     if C[func](i) ~= 0 then
