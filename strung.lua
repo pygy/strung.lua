@@ -2,7 +2,7 @@
 -- Copyright (C) 2013 Pierre-Yves Gérardy
 -- MIT licensed (see the LICENSE file for the detais).
 --
--- strung compiles patterns to Lua functions, asssociated with an FFI array 
+-- strung compiles patterns to Lua functions, asssociated with an FFI array
 -- holding bit sets, for the character sets (`[...]`) and classes (`%x`), and
 -- slots for the capture bounds. This array is allocated once at pattern
 -- compile time, and reused for each matching attempt, minimizing memory
@@ -22,7 +22,7 @@ end)
 
 local os, s, t = require"os", require"string", require"table"
 
-local s_byte, s_char, s_find, s_gmatch, s_sub, s_match 
+local s_byte, s_char, s_find, s_gmatch, s_sub, s_match
     = s.byte, s.char, s.find, s.gmatch, s.sub, s.match
 
 local t_concat, t_insert, t_remove
@@ -83,11 +83,12 @@ local templates = {}
 
 -- charsets, caps and qstn are the FFI pointers to the corresponding resources.
 templates.head = {[=[
-local bittest, charsets, caps, qstn, anchored, expose = ...
+local bittest, charsets, caps, qstn, anchored, ffi, expose = ...
 return function(subj, _, i, g_, match)
   local len = #subj
   if i > len then return nil end
   local i0 = i - 1
+  local chars = ffi.new("const char*", subj) - 1 -- substract one to keep the 1-based index
   local c, open, close, diff, previous
   repeat
     i0 = i0 + 1
@@ -147,7 +148,7 @@ templates['-'] = {[[
   if not i then break end]]
 }
 templates["?"] = {[[ 
-  do 
+  do
     local _i, q = i
     if ]], P.TEST, [[ then q = true; i = i + 1 end
     goto first
@@ -160,13 +161,15 @@ templates["?"] = {[[
     if not i and q then q = false; goto second end
   end]]
 }
-templates.char = {[[subj:byte(i) == ]], P.VAL}
+
+templates.char = {[[chars[i] == ]], P.VAL}
 templates.any = {[[i <= len]]}
-templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [[ + subj:byte(i))]]}
+templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[ + chars[i])]=]}
+
 
 templates.ballanced = {[[ 
   open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ 
-  if subj:byte(i) ~= ]], P.OPEN, [[ then 
+  if subj:byte(i) ~= ]], P.OPEN, [[ then
     i = false; break
   else
     count = 1
@@ -175,7 +178,7 @@ templates.ballanced = {[[
       c = subj:byte(i)
       if not c then i = false; break end
       if c == ]], P.OPEN, [[ then
-        count = count + 1 
+        count = count + 1
       elseif c == ]], P.CLOSE, [[ then
         count = count - 1
       end
@@ -186,10 +189,10 @@ templates.ballanced = {[[
 }
 templates.frontier = {[[ 
   if i == 1 then
-    i =  ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + subj:byte(i))) and i
+    i =  ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])) and i
   else
-    i = ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + subj:byte(i))) 
-    and ((i <= len) and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + subj:byte(i-1)))
+    i = ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i]))
+    and ((i <= len) and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + chars[i-1]))
     and i
   end
   if not i then break end]]
@@ -229,11 +232,11 @@ local function hash_find (s, p, i) --
   local c = s_byte(p)
   p, lp = p:sub(2), lp -1
   local last = ls - lp
-  repeat 
+  repeat
     while c ~= s_byte(s, i) do
       i = i + 1
       if i > last then return nil end
-    end    
+    end
     if lp == 0 or s_sub(s, i + 1, i + lp) == p then return i, i + lp end
     i = i + 1
   until i > last
@@ -268,7 +271,7 @@ end
 
 ---- Main pattern compiler ---
 
-local --[[function]] compile 
+local --[[function]] compile
 
 --- The cache for the compiled pattern matchers.
 local codecache = setmetatable({}, {
@@ -326,7 +329,7 @@ local ccref = {
     a = "isalpha", c = "iscntrl", d = "isdigit",
     l = "islower", p = "ispunct", s = "isspace",
     u = "isupper", w = "isalnum", x = "isxdigit"
-} 
+}
 local allchars = {}; for i = 0, 255 do
     allchars[i] = s_char(i)
 end
@@ -340,7 +343,7 @@ local charclass = setmetatable({}, {__index = function(self, c)
     else
       bitset(cc1, i)
     end
-  end 
+  end
   self[c:lower()] = cc0
   self[c:upper()] = cc1
   return self[c]
@@ -376,8 +379,8 @@ local function makecs(pat, i, sets)
       if i == cl then error"invalid escape sequence" end
       local cc = charclass[s_sub(pat, i, i)]
       if cc then
-        for i = 0, 7 do 
-          cs[i] = bor(cs[i], cc[i]) 
+        for i = 0, 7 do
+          cs[i] = bor(cs[i], cc[i])
         end
         i = i + 1
         goto continue
@@ -416,7 +419,7 @@ local function suffix(i, ind, len, pat, data, buf, backbuf)
     push(templates.one, data, buf,backbuf, ind)
     return i - 1, ind
   end
-  if c == "+" then 
+  if c == "+" then
     push(templates.one, data, buf,backbuf, ind)
     c = "*"
   end
@@ -432,7 +435,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         local op = 0
     local canmod = false
     if c == '(' then -- position capture
-      if pat:sub(i + 1, i + 1) == ")" then 
+      if pat:sub(i + 1, i + 1) == ")" then
         caps[#caps + 1] = 1
         caps[#caps + 1] = 0
         data[P.OPEN] = -#caps
@@ -457,7 +460,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       end
       if not data[P.CLOSE] then error"invalid closing parenthesis" end
       push(templates.close, data, buf,backbuf, ind)
-    elseif  c == '.' then 
+    elseif  c == '.' then
       data[P.TEST] = templates.any[1]
       i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
     elseif c == "[" then
@@ -569,8 +572,8 @@ function compile (pat) -- local, declared above
   if not loader then error(source.."\nERROR:"..err) end
   -- TODO move the anchored decision to the compiler rather than target code.
   -- [[]] print("ANCHORED", anchored)
-  local code = loader(bittest, charsets, capsqstn, capsqstn, anchored, expose) 
-                                    -- bittest, charsets, caps,         qstn,        anchored, expose
+  local code = loader(bittest, charsets, capsqstn, capsqstn, anchored, ffi, expose)
+                   -- bittest, charsets, caps,     qstn,     anchored, ffi, expose
   return {code, source, capsqstn, #caps/2} -- m.CODE, m.SOURCE, m.CAPSQSTN, m.NCAPS
 end
 
@@ -593,7 +596,7 @@ end
 
 local function find(subj, pat, i, plain)
   i = checki(i, subj)
-  if plain then 
+  if plain then
     return hash_find(subj, pat, i)
   end
   --[[
@@ -672,15 +675,15 @@ local _gsub = setmetatable({
 
 -- gsub helpers --
 
---- preprepl[o] --> preprocess then cache the replacement values for 
---- gsub. used for strings with 
+--- preprepl[o] --> preprocess then cache the replacement values for
+--- gsub. used for strings with
 local preprepl = setmetatable({}, {__index = function()
   -- return typ, res
 end})
 
 local function gsub(subj, pat, repl)
   local typ = type(repl)
-  if typ == "string" then 
+  if typ == "string" then
     repl = preprepl[repl]
     typ = type(repl) == "string" and "string" or "pat"
   end
