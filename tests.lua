@@ -12,10 +12,9 @@ if arg[1] == "bench" then
     function try(f, a, s, d, g, h)
         -- jit.off() jit.on()
         tsi, tSo = 0, 0
-        local params = {a, s, d, g, h}
         local ri, Ros
         print(("-_"):rep(30))
-        print("Test: ", f, unpack(params))
+        print("Test: ", f, unpack{a, s, d, g, h})
         local tic = os.clock()
         for i = 1, II do
             ri = {string[f](a, s, d, g, h)}
@@ -26,7 +25,7 @@ if arg[1] == "bench" then
             Ro = {strung[f](a, s, d, g, h)}
         end
         tSo = os.clock() - tic
-        print("strung/string: ", tSo/tsi)
+        print("strung/string: ", tSo/tsi, "///", tSo, tsi)
     end
     function gmtry(s, p)
         print(("-_"):rep(30))
@@ -36,7 +35,7 @@ if arg[1] == "bench" then
         for i = 1, II do
             ro = {}
             for a, b, c, d, e, f in strung.gmatch(s, p) do
-                ro[#ro + 1] = {a, b, c, d, e}
+                ro[#ro + 1] = {a, b, c, d, e, f}
             end
         end
         local tsi = os.clock() - tic
@@ -44,13 +43,13 @@ if arg[1] == "bench" then
         for i = 1, II do
             ri = {}
             for a, b, c, d, e, f in string.gmatch(s, p) do
-                ri[#ri + 1] = {a, b, c, d, e}
+                ri[#ri + 1] = {a, b, c, d, e, f}
             end
         end
         local tSo = os.clock() - tic
-        print("strung/string: ", tSo/tsi)
+        print("strung/string: ", tSo/tsi, "///", tSo, tsi)
     end
-    function gmtry()end
+    -- function gmtry()end
     function iter(n) II = BASE * n end
     iter(10)
 else
@@ -74,10 +73,10 @@ else
         local desc = "Test:  gmatch ".. s .." -- ".. p
         local ri, ro = {}, {}
         for a, b, c, d, e, f in strung.gmatch(s, p) do
-            ro[#ro + 1] = {a, b, c, d, e}
+            ro[#ro + 1] = {a, b, c, d, e, f}
         end
         for a, b, c, d, e, f in string.gmatch(s, p) do
-            ri[#ri + 1] = {a, b, c, d, e}
+            ri[#ri + 1] = {a, b, c, d, e, f}
         end
         strung.assert(#ro == #ri, p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
         for i = 1, #ro do
@@ -88,7 +87,7 @@ else
         end
     end
     iter = function()end
-    gmtry = iter
+    -- gmtry = iter
 end
 
 
@@ -105,6 +104,8 @@ end
 -- try("find", allchars, "%a+")
 -- gmtry(allchars, "%a+")
 
+iter(1)
+
 for _, locale in ipairs{
     -- let this out for now, LJ character classes are not sensitive to os.setlocale()
     -- "fr_FR",
@@ -118,6 +119,8 @@ for _, locale in ipairs{
 end
 
 --- .install() ---
+
+iter(10)
 
 local _f, _m, _gm, _gs, _ol = string.find, string.match, string.gmatch, string.gsub, os.locale
 
@@ -134,19 +137,22 @@ string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, 
 
 assert(strung.find("\0", "\0"), "'\\0' pattern failed to match.")
 assert(strung.find("\0", "[\0]"), "'\\0' pattern failed to match in charset.")
+
+--- The tests ---
+
+--- %f ---
+
 try("find", "\0", "%z")
 try("find", "\0", "[%z]")
 
 try("find", "", "[%z]")
 
---- The tests (in reverse order of complexity)
 
---- %f ---
--- try("find", "a", "a?a")
+try("find", "a", "a?a")
 
--- try("find", "AAAAAA", "%f[%l]a")
--- try("find", "AAAAAA", "%f[%l]")
--- try("find", "aAaAb", "%f[%l]a", 2)
+try("find", "AAAAAA", "%f[%l]a")
+try("find", "AAAAAA", "%f[%l]")
+try("find", "aAaAb", "%f[%l]a", 2)
 try("find", "aAaAb", "%f[%l]a")
 try("find", "aAaAb", "%f[%l]a", 4)
 try("find", "AaAb", "%f[%l]a")

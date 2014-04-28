@@ -1,14 +1,16 @@
 
 -- A collection of general purpose helpers.
 
-local error, pairs, print, tostring, type
-    = error, pairs, print, tostring, type
+local error, pairs, print, tonumber, tostring, type
+    = error, pairs, print, tonumber, tostring, type
 
 local s, t = require"string", require"table"
 local s_gsub, s_match, t_concat
     = s.gsub, s.match, t.concat
 
-local f_sizeof = require"ffi".sizeof
+
+local ffi = require"ffi"
+local f_alignof, f_sizeof = ffi.alignof, ffi.sizeof
 
 -- The no-op function:
 
@@ -97,9 +99,13 @@ end
 
 function cdata_to_str(v, acc, indent)
     acc[#acc+1] = ( space ):rep( indent * multiplier )
-    acc[#acc+1] = "["
+    if tostring(v):find("*", 1, true) then
+        acc[#acc+1] = tostring(v)
+        return
+    end
 
-    for i = 0, f_sizeof(v) / 4- 1  do
+    acc[#acc+1] = tostring(v).." ["
+    for i = 0, f_sizeof(v) / f_alignof(v) - 1  do
         acc[#acc+1] = tostring(tonumber(v[i]))
         acc[#acc+1] = i ~= f_sizeof(v) / 4 - 1 and  ", " or ""
     end

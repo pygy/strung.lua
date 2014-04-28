@@ -37,12 +37,19 @@ local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
+local u32ary = ffi.typeof"uint32_t[?]"
+local u32ptr = ffi.typeof"uint32_t *"
+local bitary = ffi.typeof"int32_t[?]"
+local constchar = ffi.typeof"const unsigned char *"
+
+local cdef, new = ffi.cdef, ffi.new
+
 ;(noglobals or type)("") -------------------------------------------------------------
 
 -- bit sets, code released by Mike Pall in the public domain.
 
 local function bitnew(n)
-  return ffi.new("int32_t[?]", rshift(n+31, 5))
+  return bitary(rshift(n+31, 5))
 end
 
 local function bittest(b, i)
@@ -54,7 +61,7 @@ local function bitset(b, i)
 end
 
 -- pseudo-enum, just for the kicks. This might as well be a Lua table.
-ffi.cdef[[
+cdef[[
 struct placeholder {
   static const int POS = 1;
   static const int VAL = 2;
@@ -72,7 +79,7 @@ struct placeholder {
 }
 ]]
 
-local P = ffi.new"struct placeholder"
+local P = new"struct placeholder"
 
 local g_i, g_subj, g_ins, g_start, g_end
 
@@ -83,40 +90,37 @@ local templates = {}
 
 -- charsets, caps and qstn are the FFI pointers to the corresponding resources.
 templates.head = {[=[
-local bittest, charsets, caps, qstn, anchored, ffi, expose = ...
+local bittest, charsets, caps, constchar, expose = ...
 return function(subj, _, i, g_, match)
-  local len = #subj
+    local len = #subj
   if i > len then return nil end
   local i0 = i - 1
-  local chars = ffi.new("const char*", subj) - 1 -- substract one to keep the 1-based index
+  local chars = constchar(subj) - 1 -- substract one to keep the 1-based index
   local c, open, close, diff, previous
   repeat
     i0 = i0 + 1
     repeat
       i = i0]=]
 }
-templates.tail = {[=[ 
+templates.tail = {[=[ --
       break until true
-    until anchored or i or i0 >= len
+    ]=], P.UNTIL , [=[ --
     if not i then return nil end
   i = i - 1
-  if g_ then --gsub/gmatch
-    return i0, i]=], P.GRETCAPS, [=[ 
+    if g_ then --gsub/gmatch
+    return i0, i]=], P.GRETCAPS, [=[ --
   elseif match then
-    return ]=], P.MRETCAPS, [=[ 
+    return ]=], P.MRETCAPS, [=[ --
   else -- find
-    return ]=], P.FRETCAPS, [=[ 
+    return ]=], P.FRETCAPS, [=[ --
   end
 end]=]
 }
-local capstpl = {
-  "caps[", 2, "] == 4294967295 and caps[", 4, "] or subj:sub(caps[", 6, "], caps[", 8, "]) "
-}
-templates.one = {[[ 
+templates.one = {[[ --
   i = (]], P.TEST, [[) and i + 1
   if not i then break end]]
 }
-templates['*'] = {[=[ 
+templates['*'] = {[=[ --
     local i0, i1 = i
   while true do
     if (]=], P.TEST,[=[) then i = i + 1 else break end
@@ -126,19 +130,19 @@ templates['*'] = {[=[
         i = i1
     repeat
       ]=],
-      P.NEXT, [[ 
+      P.NEXT, [[ --
     break until true
     if i then break end
     i1 = i1 - 1
   until i1 < i0
   --if not i then break end]]
 }
-templates['-'] = {[[ 
+templates['-'] = {[[ --
   local i1 = i
   while true do
     i = i1
     repeat]],
-      P.NEXT, [[ 
+      P.NEXT, [[ --
     break until true
     if i then break end
     i = i1
@@ -147,7 +151,7 @@ templates['-'] = {[[
   end
   if not i then break end]]
 }
-templates["?"] = {[[ 
+templates["?"] = {[[ --
   do
     local _i, q = i
     if ]], P.TEST, [[ then q = true; i = i + 1 end
@@ -156,19 +160,19 @@ templates["?"] = {[[
     i = _i
     ::first::
     repeat]],
-      P.NEXT, [[ 
+      P.NEXT, [[ --
     break until true
     if not i and q then q = false; goto second end
   end]]
 }
 
-templates.char = {[[chars[i] == ]], P.VAL}
+templates.char = {[[(i <= len) and chars[i] == ]], P.VAL}
 templates.any = {[[i <= len]]}
 templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[ + chars[i])]=]}
 
 
-templates.ballanced = {[[ 
-  open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ 
+templates.ballanced = {[[ --
+  open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ --
   if subj:byte(i) ~= ]], P.OPEN, [[ then
     i = false; break
   else
@@ -187,7 +191,7 @@ templates.ballanced = {[[
   if not c then i = false; break end
   i = i + 1]]
 }
-templates.frontier = {[[ 
+templates.frontier = {[[ --
   if i == 1 then
     i =  ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])) and i
   else
@@ -197,12 +201,12 @@ templates.frontier = {[[
   end
   if not i then break end]]
 }
-templates.poscap = {[[ 
+templates.poscap = {[[ --
   caps[]], P.OPEN, [[] = i
   caps[]], P.CLOSE, [[] = 4294967295
 ]]
 }
-templates.refcap = {[[ 
+templates.refcap = {[[ --
   open, close = caps[]], P.OPEN, [[], caps[]], P.CLOSE, [[]
   diff = close - open
   if subj:sub(open, close) == subj:sub(i, i + diff) then
@@ -211,10 +215,10 @@ templates.refcap = {[[
     i = false; break
   end]]
 }
-templates.open = {[[ 
+templates.open = {[[ --
   caps[]], P.OPEN, [[] = i]]
 }
-templates.close = {[[ 
+templates.close = {[[ --
       caps[]], P.CLOSE, [[] = i - 1]]
 }
   templates.dollar = {[[
@@ -305,14 +309,10 @@ local function push (tpl, data, buf, backbuf, ind)
       backbuf[#backbuf + 1] = indent(ind, o)
     end
   end end
-  for i = 1, #buf do
-          end
-    for i = #backbuf, 1, -1 do
-          end
-  end
+end
 
 -- Character classes...
-ffi.cdef[[
+cdef[[
   int isalpha (int c);
   int iscntrl (int c);
   int isdigit (int c);
@@ -336,7 +336,7 @@ end
 local charclass = setmetatable({}, {__index = function(self, c)
   local func = ccref[c:lower()]
   if not func then return nil end
-  local cc0, cc1 = ffi.new('uint32_t[8]'), ffi.new('uint32_t[8]')
+  local cc0, cc1 = u32ary(8), u32ary(8)
   for i = 0, 255 do
     if C[func](i) ~= 0 then
       bitset(cc0, i)
@@ -370,7 +370,7 @@ local function makecs(pat, i, sets)
   local inv if s_byte(pat,i) == hat then inv = true; i = i + 1 end
   local cl, last = i + 1, #pat
   while ']' ~= s_sub(pat, cl, cl) do cl = cl + 1 if i > last then error"unfinished character class" end end
-  local cs = ffi.new('uint32_t[8]')
+  local cs = u32ary(8)
   local c
   while i < cl do
     c = s_sub(pat,i, i)
@@ -404,7 +404,7 @@ local function makecs(pat, i, sets)
   return inv, (sets[k] - 1) * 256, cl
 end
 
-ffi.cdef[[const char * strchr ( const char * str, int character );]]
+cdef[[const char * strchr ( const char * str, int character );]]
 
 local suffixes = {
   ["*"] = true,
@@ -428,7 +428,7 @@ local function suffix(i, ind, len, pat, data, buf, backbuf)
 end
 
 local function _compile(pat, i, caps, sets, data, buf, backbuf)
-    local len = #pat
+  local len = #pat
   local ind = 1
   local c = pat:sub(i,i)
   while i <= len do
@@ -445,16 +445,16 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       else -- open capture
         caps[#caps + 1] = 1
         caps[#caps + 1] = -1
-        caps.open = caps.open + 1
+        caps.open = caps.open + 1 -- keep track of opened captures
         data[P.OPEN] = -#caps
         push(templates.open, data, buf,backbuf, ind)
       end
     elseif c == ")" then -- open capture
       data[P.CLOSE] = false
       for j = #caps, 2, -2 do
-        if caps[j] == -1 then
-          caps[j] = 1
-        caps.open = caps.open - 1
+        if caps[j] == -1 then -- -1 means that the slot has not been closed yet.
+          caps[j] = 1         -- colse it
+          caps.open = caps.open - 1
           data[P.CLOSE] = - j + 1;
           break end
       end
@@ -495,7 +495,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         data[P.NEG] = inv and "" or "not"
         push(templates.frontier, data, buf, backbuf, ind)
       else
-        if c == 'z'then c = '\0' end
+        if c == 'z' then c = '\0' end
         templates.char[P.VAL] = c:byte()
         data[P.TEST] = t_concat(templates.char)
         i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
@@ -515,47 +515,50 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
 end
 
 --- Create the uint32_t array that holds the character sets and capture bounds.
-local function pack (sets, ncaps, nqstn)
+local function pack (sets, ncaps)
   local nsets = #sets
-  local len = nsets*8 + ncaps*2 + nqstn
-  local charsets = ffi.new("uint32_t[?]", len)
-  local capsqst = ffi.new("uint32_t *", charsets) + (len - nqstn)
+  local len = nsets*8 + ncaps*2
+  local charsets = u32ary(len)
+  local capsptr= u32ptr(charsets) + len
   for i = 1, nsets do
     for j = 0, 7 do
       charsets[(i - 1) * 8 + j] = sets[i][j]
     end
   end
-      return charsets, capsqst
+      return charsets, capsptr
 end
 
-ffi.cdef[[
+cdef[[
 struct M {
   static const int CODE = 1;
   static const int SOURCE = 2;
-  static const int CAPSQSTN = 3;
-  static const int NCAPS = 4;
-}]] local M = ffi.new"struct M"
+  static const int NCAPS = 3;
+  static const int CHARSETS = 4;
+}]] local M = new"struct M"
+
 
 function compile (pat) -- local, declared above
   local anchored = (pat:sub(1,1) == "^")
-  -- [[]] print("PAT< ANCH?", pat, anchored)
-  local caps, sets, qstn = {open = 0}, {}, {}
+  local caps, sets = {open = 0}, {}
   local data = {}
   local buf, backbuf = {templates.head[1]}, {}
   local i = anchored and 2 or 1
+
   _compile(pat, i, caps, sets, data, buf, backbuf)
-  -- pack the charsets, captures and "x?" references in an FFI array.
-  local charsets, capsqstn = pack(sets, #caps/2, #qstn)
-  -- prepare the return values
+
+  -- pack the charsets and captures in an FFI array.
+  local charsets, capsptr = pack(sets, #caps/2)
   for i = #backbuf, 1, -1 do buf[#buf + 1] = backbuf[i] end
-  local rc = {}
+
+  -- prepare the return values
   assert(caps.open == 0, "invalid pattern: one or more captures left open")
   assert(#caps<400, "too many captures in pattern (max 200)")
+
+  local rc = {}
   if #caps ~= 0 then
     for i = 2, #caps, 2 do
-      capstpl[2], capstpl[8] = -i + 1, -i + 1
-      capstpl[4], capstpl[6] = -i, -i
-      rc[#rc + 1] = t_concat(capstpl)
+      rc[#rc + 1] = "caps[" .. -i + 1 .. "] == 4294967295 and caps[".. -i
+                 .. "] or subj:sub(caps[".. -i .."], caps[" .. -i + 1 .. "]) "
     end
     data[P.MRETCAPS] = t_concat(rc, ", ")
     data[P.GRETCAPS] = ", caps"
@@ -563,18 +566,21 @@ function compile (pat) -- local, declared above
     data[P.MRETCAPS] = "subj:sub(i0, i)"
     data[P.GRETCAPS] = ""
   end
+
   t_insert(rc, 1, "i0, i") -- for find, prepend the bounds of the match
   data[P.FRETCAPS] = t_concat(rc, ", ")
+
+  data[P.UNTIL] = anchored and "break until true" or "until i or i0 >= len"
+
   push(templates.tail, data, buf, backbuf, 0)
+
   -- load the source
   local source = t_concat(buf)
   local loader, err = loadstring(source)
   if not loader then error(source.."\nERROR:"..err) end
-  -- TODO move the anchored decision to the compiler rather than target code.
-  -- [[]] print("ANCHORED", anchored)
-  local code = loader(bittest, charsets, capsqstn, capsqstn, anchored, ffi, expose)
-                   -- bittest, charsets, caps,     qstn,     anchored, ffi, expose
-  return {code, source, capsqstn, #caps/2} -- m.CODE, m.SOURCE, m.CAPSQSTN, m.NCAPS
+  local code = loader(bittest, charsets, capsptr, constchar, expose)
+  return {code,   source,   #caps/2,   charsets}
+     -- m.CODE, m.SOURCE,   m.NCAPS, m.CHARSETS -- anchor the charset array? Seems to fix the segfault.
 end
 
 
@@ -621,36 +627,42 @@ end
 
 -- gmatch paraphernalia --
 
-local rtpl = {[=[
-local expose = ...
-return function(c, subj)
-  return ]=], 2,[[ 
-end]]}
-
-local ctpl = {"c[", 2, "] == 4294967295 and c[", 4, "] or subj:sub(c[", 6, "], c[", 8, "]) "}
-
 --- lazily build a table of functions that produce n captures at a given offset.
 --- the offset * n combo is encoded as a single number by lshifting the offset
 --- by 8 then adding it to n.
 local returning = setmetatable({}, {__index = function(self, a)
-  local n, offset = a[M.NCAPS]
+  local n = a[M.NCAPS]
   local acc = {}
-  for i = 2, n * 2, 2 do
-    ctpl[4], ctpl[2] = offset - i, offset - i + 1
-    ctpl[6], ctpl[8] = offset - i, offset - i + 1
-    acc[#acc + 1] = t_concat(ctpl)
+  for open = -2, -n * 2, -2 do
+    local close = open + 1
+    acc[#acc + 1] =
+      "c["..close.."] == 4294967295 and c["..open.."] or "..
+        "subj:sub(c["..open.."], c["..close.."])"
   end
-  rtpl[2] = t_concat(acc, ", ")
-  local res = loadstring(t_concat(rtpl))(expose)
+  local res = loadstring([=[ --
+    return function(c, subj)
+      return ]=]..t_concat(acc, ", ")..[[ --
+    end
+  ]])()
   self[a] = res
   return res
 end})
 
+
+cdef[[
+struct GM {
+  static const int CODE = 1;
+  static const int SUBJ = 2;
+  static const int PAT = 3;
+  static const int INDEX = 4;
+  static const int RET = 5;
+}]] local GM = new"struct GM"
+
 local function gmatch_iter(state)
-  local s, e, c = state[1](state[2], state[3], state[4], true)
-  if s then state[4] = e + 1
+  local s, e, c = state[GM.CODE](state[GM.SUBJ], state[GM.PAT], state[GM.INDEX], true, false)
+  if s then state[GM.INDEX] = e + 1
     if c then
-      return state[5](c, state[2])
+      return state[GM.RET](c, state[2])
     else
       return state[2]:sub(s, e)
     end
@@ -663,9 +675,7 @@ local function gmatch(subj, pat)
   local c = codecache[pat]
   local state = {c[M.CODE], subj, pat, 1, returning[c]}
   -- see the returning .__index definition for the rationale for the bit twiddling.
-  -- [[]] print("PAT", pat)
-  -- [[]] print("SOURCE", codecache[pat][M.SOURCE])
-  return gmatch_iter, state
+      return gmatch_iter, state
 end
 
 local _gsub = setmetatable({
