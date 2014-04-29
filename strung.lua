@@ -37,9 +37,9 @@ local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
+
 local u32ary = ffi.typeof"uint32_t[?]"
 local u32ptr = ffi.typeof"uint32_t *"
-local bitary = ffi.typeof"int32_t[?]"
 local constchar = ffi.typeof"const unsigned char *"
 
 local cdef, new = ffi.cdef, ffi.new
@@ -48,9 +48,10 @@ local cdef, new = ffi.cdef, ffi.new
 
 -- bit sets, code released by Mike Pall in the public domain.
 
-local function bitnew(n)
-  return bitary(rshift(n+31, 5))
-end
+-- local bitary = ffi.typeof"int32_t[?]"
+-- local function bitnew(n)
+--   return bitary(rshift(n+31, 5))
+-- end
 
 local function bittest(b, i)
   return band(rshift(b[rshift(i, 5)], i), 1) ~= 0
@@ -92,7 +93,7 @@ local templates = {}
 templates.head = {[=[
 local bittest, charsets, caps, constchar, expose = ...
 return function(subj, _, i, g_, match)
-    local len = #subj
+  local len = #subj
   if i > len then return nil end
   local i0 = i - 1
   local chars = constchar(subj) - 1 -- substract one to keep the 1-based index
@@ -103,9 +104,9 @@ return function(subj, _, i, g_, match)
       i = i0]=]
 }
 templates.tail = {[=[ --
-      break until true
+    break until true
     ]=], P.UNTIL , [=[ --
-    if not i then return nil end
+  if not i then return nil end
   i = i - 1
     if g_ then --gsub/gmatch
     return i0, i]=], P.GRETCAPS, [=[ --
@@ -116,11 +117,11 @@ templates.tail = {[=[ --
   end
 end]=]
 }
-templates.one = {[[ --
+templates.one = {[[ -- c
   i = (]], P.TEST, [[) and i + 1
   if not i then break end]]
 }
-templates['*'] = {[=[ --
+templates['*'] = {[=[ -- c*
     local i0, i1 = i
   while true do
     if (]=], P.TEST,[=[) then i = i + 1 else break end
@@ -137,7 +138,7 @@ templates['*'] = {[=[ --
   until i1 < i0
   --if not i then break end]]
 }
-templates['-'] = {[[ --
+templates['-'] = {[[ -- c-
   local i1 = i
   while true do
     i = i1
@@ -151,7 +152,7 @@ templates['-'] = {[[ --
   end
   if not i then break end]]
 }
-templates["?"] = {[[ --
+templates["?"] = {[[ -- c?
   do
     local _i, q = i
     if ]], P.TEST, [[ then q = true; i = i + 1 end
@@ -171,7 +172,7 @@ templates.any = {[[i <= len]]}
 templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[ + chars[i])]=]}
 
 
-templates.ballanced = {[[ --
+templates.ballanced = {[[ -- %b
   open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ --
   if subj:byte(i) ~= ]], P.OPEN, [[ then
     i = false; break
@@ -191,7 +192,7 @@ templates.ballanced = {[[ --
   if not c then i = false; break end
   i = i + 1]]
 }
-templates.frontier = {[[ --
+templates.frontier = {[[ -- %f
   if i == 1 then
     i =  ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])) and i
   else
@@ -201,12 +202,12 @@ templates.frontier = {[[ --
   end
   if not i then break end]]
 }
-templates.poscap = {[[ --
+templates.poscap = {[[ -- ()
   caps[]], P.OPEN, [[] = i
   caps[]], P.CLOSE, [[] = 4294967295
 ]]
 }
-templates.refcap = {[[ --
+templates.refcap = {[[ -- %n for n = 1, 9
   open, close = caps[]], P.OPEN, [[], caps[]], P.CLOSE, [[]
   diff = close - open
   if subj:sub(open, close) == subj:sub(i, i + diff) then
@@ -215,10 +216,10 @@ templates.refcap = {[[ --
     i = false; break
   end]]
 }
-templates.open = {[[ --
+templates.open = {[[ -- (
   caps[]], P.OPEN, [[] = i]]
 }
-templates.close = {[[ --
+templates.close = {[[ -- )
       caps[]], P.CLOSE, [[] = i - 1]]
 }
   templates.dollar = {[[
