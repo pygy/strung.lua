@@ -38,6 +38,13 @@ local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
 
+--[[DBG]] local ffimt = {__gc = function(self, ...)
+--[[DBG]]   print("GC", self, ...)
+-- [[DBG]]   expose(self)
+--[[DBG]] end}
+
+--[[DBG]] local u32arys = ffi.metatype("struct {uint32_t ary[?];}", ffimt)
+
 local u32ary = ffi.typeof"uint32_t[?]"
 local u32ptr = ffi.typeof"uint32_t *"
 local constchar = ffi.typeof"const unsigned char *"
@@ -91,8 +98,9 @@ local templates = {}
 
 -- charsets, caps and qstn are the FFI pointers to the corresponding resources.
 templates.head = {[=[
-local bittest, charsets, caps, constchar, expose = ...
+local bittest, charsetsS, caps, constchar, expose = ...
 return function(subj, _, i, g_, match)
+  local charsets = charsetsS.ary
   local len = #subj
   if i > len then return nil end
   local i0 = i - 1
@@ -519,11 +527,11 @@ end
 local function pack (sets, ncaps)
   local nsets = #sets
   local len = nsets*8 + ncaps*2
-  local charsets = u32ary(len)
-  local capsptr= u32ptr(charsets) + len
+  local charsets = u32arys(len)
+  local capsptr= u32ptr(charsets.ary) + len
   for i = 1, nsets do
     for j = 0, 7 do
-      charsets[(i - 1) * 8 + j] = sets[i][j]
+      charsets.ary[(i - 1) * 8 + j] = sets[i][j]
     end
   end
       return charsets, capsptr
@@ -580,7 +588,7 @@ function compile (pat) -- local, declared above
   local loader, err = loadstring(source)
   if not loader then error(source.."\nERROR:"..err) end
   local code = loader(bittest, charsets, capsptr, constchar, expose)
-  return {code,   source,   #caps/2,   charsets}
+  return {code,   source,   #caps/2}--,   charsets}
      -- m.CODE, m.SOURCE,   m.NCAPS, m.CHARSETS -- anchor the charset array? Seems to fix the segfault.
 end
 
