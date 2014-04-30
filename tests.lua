@@ -1,5 +1,6 @@
 local strung = require"strung"
 
+-- local v = require"jit.v"
 --- First, the test and benchmark infrastructure.
 --- `try` and `gmtry` run both the original and strung version of the functions, 
 --- and compare either their ouput, or their speed if "bench" is passed as a 
@@ -16,6 +17,7 @@ if arg[1] == "bench" then
         print(("-_"):rep(30))
         print("Test: ", f, unpack{a, s, d, g, h})
         local tic = os.clock()
+        -- v.on("-")
         for i = 1, II do
             ri = {string[f](a, s, d, g, h)}
         end
@@ -25,7 +27,7 @@ if arg[1] == "bench" then
             Ro = {strung[f](a, s, d, g, h)}
         end
         tSo = os.clock() - tic
-        print("strung/string: ", tSo/tsi, "///", tSo, tsi)
+        print("strung/string: ", tSo/tsi, tsi/tSo, "///", tSo, tsi)
     end
     function gmtry(s, p)
         print(("-_"):rep(30))
@@ -93,16 +95,15 @@ end
 
 
 --- Character classes and locales ---
-
 local allchars do
     local acc = {}
     for i = 0, 255 do acc[i+1] = string.char(i) end
     allchars = table.concat(acc)
 end
 
--- try("find", allchars, "a")
--- try("find", allchars, "%a+")
--- gmtry(allchars, "%a+")
+try("find", allchars, "a")
+try("find", allchars, "%a+")
+gmtry(allchars, "%a+")
 
 iter(1)
 
@@ -117,8 +118,9 @@ for _, locale in ipairs{
         gmtry(allchars, "%"..c:upper().."+")
     end
 end
+gmtry(allchars, "%z+")
 
---- .install() ---
+-- --- .install() ---
 
 iter(10)
 
@@ -135,10 +137,12 @@ assert(
 --restore the originals.
 string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
 
+
+--- The tests ---
+
 assert(strung.find("\0", "\0"), "'\\0' pattern failed to match.")
 assert(strung.find("\0", "[\0]"), "'\\0' pattern failed to match in charset.")
 
---- The tests ---
 
 --- %f ---
 
