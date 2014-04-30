@@ -39,7 +39,7 @@ local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
 
 --[[DBG]] local ffimt = {__gc = function(self, ...)
---[[DBG]]   print("GC", self, ...)
+-- [[DBG]]   print("GC", self, ...)
 -- [[DBG]]   expose(self)
 --[[DBG]] end}
 
@@ -49,7 +49,7 @@ local u32ary = ffi.typeof"uint32_t[?]"
 local u32ptr = ffi.typeof"uint32_t *"
 local constchar = ffi.typeof"const unsigned char *"
 
-local cdef, new = ffi.cdef, ffi.new
+local cdef, new, typeof = ffi.cdef, ffi.new, ffi.typeof
 
 ;(noglobals or type)("") -------------------------------------------------------------
 
@@ -160,6 +160,7 @@ templates['-'] = {[[ -- c-
   end
   if not i then break end]]
 }
+
 templates["?"] = {[[ -- c?
   do
     local _i, q = i
@@ -534,7 +535,7 @@ local function pack (sets, ncaps)
       charsets.ary[(i - 1) * 8 + j] = sets[i][j]
     end
   end
-      return charsets, capsptr
+  return charsets, capsptr
 end
 
 cdef[[
@@ -700,16 +701,110 @@ local preprepl = setmetatable({}, {__index = function()
   -- return typ, res
 end})
 
-local function gsub(subj, pat, repl)
-  local typ = type(repl)
-  if typ == "string" then
-    repl = preprepl[repl]
-    typ = type(repl) == "string" and "string" or "pat"
+local gsub do
+  local BUFF_INIT_SIZE = 16
+
+  local acache = setmetatable({},{__mode = "k"})
+  local _buffer = typeof[[
+    struct{
+      uint32_t s;
+      uint32_t i;
+      unsigned char* a;
+    }
+  ]] -- size, index, array
+
+  local charary = typeof"unsigned char[?]"
+  local function buffer()
+    local b = _buffer(BUFF_INIT_SIZE, 0, 0)
+    local a = charary(BUFF_INIT_SIZE)
+    b.i = a
+    acache[b] = a
+    return b
   end
-  return _gsub[typ](subj, pat, repl)
+
+  local function doublebuf(b)
+    local size = b.s * 2
+    b.s = size
+    a = charary(size)
+    f_copy(b.a, a, b.i)
+    b.a = a
+    acache[b] = a
+  end
+
+  local function mergebuf(acc, new)
+    if acc.i + new.i > acc.s then doublebuf(acc) end
+    f_copy(acc.a + acc.i, new.a, new.i)
+    acc.i = acc.i + new.i
+  end
+
+  local function mergestr(acc, str)
+    if acc.i + #str > acc.s then doublebuf(acc) end
+    f_copy(acc.a + #str, constchar(str), #str)
+    acc.i = acc.i + #str
+  end
+
+  local function mergebytes(acc, ptr, len)
+    if acc.i + len > acc.s then doublebuf(acc) end
+    f_copy(acc.a + len, ptr, len)
+    acc.i = acc.i + len
+  end
+
+  local function table_handler(subj, i, e, caps, producer, buf, tbl)
+    --
+  end
+
+  local function string_handler(subj, i, e, caps, producer, buf, str)
+    mergestr(buf, str)
+  end
+
+  local function pattern_handler(subj, i, e, caps, producer, buf, pat)
+    --
+  end
+
+  local function function_handler(subj, i, e, caps, producer, buf, fun)
+    local res = fun(producer(caps))
+    if not res then
+      mergebytes(acc, subj + i, e - i + 1)
+    else
+      t = type(res)
+      if t == "string" or t == "number" then
+        res = tostring(res)
+        mergestr(buf, res)
+      else
+        error("invalid replacement value (a "..t..")")
+      end
+    end
+  end
+
+  local function select_handler(repl)
+    t = type(repl)
+    if t == "srting" then
+      return h:find("%%%d") and pattern_handler or string_handler
+    elseif t == "table" then
+      return table_handler
+    elseif t == "function" then
+      return function_handler
+    else
+      error("Bad replacement type for GSUB TODO IMPROVE MESSAGE.")
+    end
+  end
+
+  function gsub(subj, pat, repl)
+    local handler = select_handler(repl)
+    local c = codecache[pat]
+    local matcher = c[M.CODE]
+    local i, e, caps = matcher(subj, pat, 1, false, true)
+    if not i then return nil end
+    local buf = buffer()
+    local producer = returning[c]
+    while i do
+      handler(subj, i, e, caps, producer, buf, repl)
+      i, e, caps = matcher(subj, pat, e + 1, false, true)
+    end
+    return f_string(buf.s, buf.i)
+  end
+
 end
-
-
 -- used in the test suite.
 local function _assert(test, pat, msg)
   if not test then
