@@ -49,7 +49,7 @@ local u32ary = ffi.typeof"uint32_t[?]"
 local u32ptr = ffi.typeof"uint32_t *"
 local constchar = ffi.typeof"const unsigned char *"
 
-local cdef, new, typeof = ffi.cdef, ffi.new, ffi.typeof
+local cdef, copy, new, ffi_string, typeof = ffi.cdef, ffi.copy, ffi.new, ffi.string, ffi.typeof
 
 ;(noglobals or type)("") -------------------------------------------------------------
 
@@ -269,7 +269,7 @@ local function simplewrp(s, p, i, _g, match)
   end
 end
 local simplekey = {"simple"}
-local function simple(pat) return {simplewrp, simplekey} end
+local function simple(pat) return {simplewrp, simplekey, 0} end
 
 local specials = {} for _, c in ipairs{"^", "$", "*", "+", "?", ".", "(", "[", "%", "-"} do
   specials[c:byte()] = true
@@ -528,7 +528,7 @@ end
 local function pack (sets, ncaps)
   local nsets = #sets
   local len = nsets*8 + ncaps*2
-  local charsets = u32arys(len)
+  local charsets = u32arys(len + 2) -- add two slots for the bounds of the match.
   local capsptr= u32ptr(charsets.ary) + len
   for i = 1, nsets do
     for j = 0, 7 do
@@ -715,9 +715,9 @@ local gsub do
 
   local charary = typeof"unsigned char[?]"
   local function buffer()
-    local b = _buffer(BUFF_INIT_SIZE, 0, 0)
+    local b = _buffer(BUFF_INIT_SIZE, 0, nil)
     local a = charary(BUFF_INIT_SIZE)
-    b.i = a
+    b.a = a
     acache[b] = a
     return b
   end
@@ -726,26 +726,26 @@ local gsub do
     local size = b.s * 2
     b.s = size
     a = charary(size)
-    f_copy(b.a, a, b.i)
+    copy(b.a, a, b.i)
     b.a = a
     acache[b] = a
   end
 
   local function mergebuf(acc, new)
     if acc.i + new.i > acc.s then doublebuf(acc) end
-    f_copy(acc.a + acc.i, new.a, new.i)
+    copy(acc.a + acc.i, new.a, new.i)
     acc.i = acc.i + new.i
   end
 
   local function mergestr(acc, str)
     if acc.i + #str > acc.s then doublebuf(acc) end
-    f_copy(acc.a + #str, constchar(str), #str)
+    copy(acc.a + acc.i, constchar(str), #str)
     acc.i = acc.i + #str
   end
 
   local function mergebytes(acc, ptr, len)
     if acc.i + len > acc.s then doublebuf(acc) end
-    f_copy(acc.a + len, ptr, len)
+    copy(acc.a + acc.i, ptr, len)
     acc.i = acc.i + len
   end
 
@@ -776,10 +776,10 @@ local gsub do
     end
   end
 
-  local function select_handler(repl)
+  local function select_handler(ncaps, repl)
     t = type(repl)
-    if t == "srting" then
-      return h:find("%%%d") and pattern_handler or string_handler
+    if t == "string" then
+      return repl:find("%%%d") and pattern_handler or string_handler
     elseif t == "table" then
       return table_handler
     elseif t == "function" then
@@ -790,18 +790,25 @@ local gsub do
   end
 
   function gsub(subj, pat, repl)
-    local handler = select_handler(repl)
     local c = codecache[pat]
     local matcher = c[M.CODE]
-    local i, e, caps = matcher(subj, pat, 1, false, true)
+    local handler, producer = select_handler(c[M.NCAPS], repl)
+
+    local i, e, caps = matcher(subj, pat, 1, true, false)
     if not i then return nil end
+
     local buf = buffer()
-    local producer = returning[c]
+    local subjptr = constchar(subj)
+    local last_e = 0
     while i do
+      mergebytes(buf, subjptr + last_e, i - last_e - 1)
+      last_e = e
       handler(subj, i, e, caps, producer, buf, repl)
-      i, e, caps = matcher(subj, pat, e + 1, false, true)
+      --[[DBG]] print("Loop; i, e:", i,e)
+      i, e, caps = matcher(subj, pat, e + 1, true, false)
     end
-    return f_string(buf.s, buf.i)
+    mergebytes(buf, subjptr + last_e, #subj - last_e)
+    return ffi_string(buf.a, buf.i)
   end
 
 end
@@ -833,13 +840,13 @@ return {
     s.find = find
     s.match = match
     s.gmatch = gmatch
-    -- s.gsub = gsub
+    s.gsub = gsub
     os.setlocale = setlocale
   end,
   find = find,
   match = match,
   gmatch = gmatch,
-  gsub = function() error"strung.gsub: not yet implemented" end, --gsub,
+  gsub = gsub,
   reset = reset,
   setlocale = setlocale,
   assert = _assert
