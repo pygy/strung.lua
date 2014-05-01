@@ -108,11 +108,11 @@ return function(subj, _, i, g_, match)
   local c, open, close, diff, previous
   repeat
     i0 = i0 + 1
-    repeat
+    do --repeat
       i = i0]=]
 }
 templates.tail = {[=[ --
-    break until true
+    ::done:: end --break until true
     ]=], P.UNTIL , [=[ --
   if not i then return nil end
   i = i - 1
@@ -127,7 +127,7 @@ end]=]
 }
 templates.one = {[[ -- c
   i = (]], P.TEST, [[) and i + 1
-  if not i then break end]]
+  if not i then goto done end --break]]
 }
 templates['*'] = {[=[ -- c*
     local i0, i1 = i
@@ -136,29 +136,29 @@ templates['*'] = {[=[ -- c*
   end
   i1 = i
   repeat
-        i = i1
-    repeat
+    i = i1
+    do --repeat
       ]=],
       P.NEXT, [[ --
-    break until true
+    ::done:: end --break until true
     if i then break end
     i1 = i1 - 1
   until i1 < i0
-  --if not i then break end]]
+  --if not i then goto done end --break]]
 }
 templates['-'] = {[[ -- c-
   local i1 = i
   while true do
     i = i1
-    repeat]],
+    do --repeat]],
       P.NEXT, [[ --
-    break until true
+    ::done:: end --break until true
     if i then break end
     i = i1
     if not (]],P.TEST, [[) then i = false; break end
     i1 = i1 + 1
   end
-  if not i then break end]]
+  if not i then goto done end --break]]
 }
 
 templates["?"] = {[[ -- c?
@@ -169,9 +169,9 @@ templates["?"] = {[[ -- c?
     ::second::
     i = _i
     ::first::
-    repeat]],
+    do --repeat]],
       P.NEXT, [[ --
-    break until true
+    ::done:: end --break until true
     if not i and q then q = false; goto second end
   end]]
 }
@@ -184,7 +184,7 @@ templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[
 templates.ballanced = {[[ -- %b
   open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ --
   if subj:byte(i) ~= ]], P.OPEN, [[ then
-    i = false; break
+    i = false; goto done --break
   else
     count = 1
     repeat
@@ -198,7 +198,7 @@ templates.ballanced = {[[ -- %b
       end
     until count == 0 or not c
   end
-  if not c then i = false; break end
+  if not c then i = false; goto done end --break
   i = i + 1]]
 }
 templates.frontier = {[[ -- %f
@@ -209,7 +209,7 @@ templates.frontier = {[[ -- %f
     and ((i <= len) and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + chars[i-1]))
     and i
   end
-  if not i then break end]]
+  if not i then goto done end --break]]
 }
 templates.poscap = {[[ -- ()
   caps[]], P.OPEN, [[] = i
@@ -222,7 +222,7 @@ templates.refcap = {[[ -- %n for n = 1, 9
   if subj:sub(open, close) == subj:sub(i, i + diff) then
     i = i + diff + 1
   else
-    i = false; break
+    i = false; goto done --break
   end]]
 }
 templates.open = {[[ -- (
@@ -231,7 +231,7 @@ templates.open = {[[ -- (
 templates.close = {[[ -- )
       caps[]], P.CLOSE, [[] = i - 1]]
 }
-  templates.dollar = {[[
+  templates.dollar = {[[ --
   if i ~= #subj + 1 then i = false end]]
 }
 

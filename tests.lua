@@ -302,11 +302,13 @@ try("find", "S", "[A-Z]")
 
 try("find", "ab", "a?b")
 try("find", "b", "a?b")
+try("find", "abbab", "a?ba?b$")
+try("find", "abbabbab", "a?ba?b$")
 try("find", "abbabbab", "a?ba?ba?ba?ba?b$")
 try("find", "abbabbaba", "a?ba?ba?ba?ba?b$")
 
 try("find", "aaaabaaaaabbaaaabb$", "a+bb$")
-try("find", "aaaabaaaaabbaaaabb", "a+bb$")
+try("find", "aaaabaaaaabbaaaabb", "a*bb$")
 try("find", "aaaaaaaabaaabaaaaabb", "a+bb")
 try("find", "aaaaaaaabaaabaaaaabb", "a*bb")
 
