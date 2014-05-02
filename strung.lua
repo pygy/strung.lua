@@ -105,7 +105,7 @@ return function(subj, _, i, g_, match)
   if i > len then return nil end
   local i0 = i - 1
   local chars = constchar(subj) - 1 -- substract one to keep the 1-based index
-  local c, open, close, diff, previous
+  local c, open, close, diff
   repeat
     i0 = i0 + 1
     do --repeat
@@ -113,8 +113,8 @@ return function(subj, _, i, g_, match)
 }
 templates.tail = {[=[ --
     ::done:: end --break until true
-    ]=], P.UNTIL , [=[ --
-  if not i then return nil end
+  ]=], P.UNTIL , [=[ --
+  if i == 0 then return nil end
   i = i - 1
     if g_ then --gsub/gmatch
     return i0, i]=], P.GRETCAPS, [=[ --
@@ -126,8 +126,8 @@ templates.tail = {[=[ --
 end]=]
 }
 templates.one = {[[ -- c
-  i = (]], P.TEST, [[) and i + 1
-  if not i then goto done end --break]]
+  i = (]], P.TEST, [[) and i + 1 or 0
+  if i == 0 then goto done end --break]]
 }
 templates['*'] = {[=[ -- c*
     local i0, i1 = i
@@ -141,7 +141,7 @@ templates['*'] = {[=[ -- c*
       ]=],
       P.NEXT, [[ --
     ::done:: end --break until true
-    if i then break end
+    if i ~= 0 then break end
     i1 = i1 - 1
   until i1 < i0
   --if not i then goto done end --break]]
@@ -153,17 +153,17 @@ templates['-'] = {[[ -- c-
     do --repeat]],
       P.NEXT, [[ --
     ::done:: end --break until true
-    if i then break end
+    if i ~= 0 then break end
     i = i1
-    if not (]],P.TEST, [[) then i = false; break end
+    if not (]],P.TEST, [[) then i = 0; break end
     i1 = i1 + 1
   end
-  if not i then goto done end --break]]
+  if i == 0 then goto done end --break]]
 }
 
 templates["?"] = {[[ -- c?
   do
-    local _i, q = i
+    local _i, q = i, false
     if ]], P.TEST, [[ then q = true; i = i + 1 end
     goto first
     ::second::
@@ -172,7 +172,7 @@ templates["?"] = {[[ -- c?
     do --repeat]],
       P.NEXT, [[ --
     ::done:: end --break until true
-    if not i and q then q = false; goto second end
+    if i == 0 and q then q = false; goto second end
   end]]
 }
 
@@ -182,34 +182,35 @@ templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[
 
 
 templates.ballanced = {[[ -- %b
-  open, close = ]], P.OPEN,[[, ]], P.CLOSE, [[ --
   if subj:byte(i) ~= ]], P.OPEN, [[ then
-    i = false; goto done --break
+    i = 0; goto done --break
   else
     count = 1
     repeat
       i = i + 1
-      c = subj:byte(i)
-      if not c then i = false; break end
+      if i > len then i = 0; break end
+      c = chars[i]
       if c == ]], P.OPEN, [[ then
         count = count + 1
       elseif c == ]], P.CLOSE, [[ then
         count = count - 1
       end
-    until count == 0 or not c
+    until count == 0 or i == 0
   end
-  if not c then i = false; goto done end --break
+  if i == 0 then goto done end --break
   i = i + 1]]
 }
 templates.frontier = {[[ -- %f
-  if i == 1 then
-    i =  ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])) and i
-  else
-    i = ((i <= len) and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i]))
-    and ((i <= len) and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + chars[i-1]))
-    and i
-  end
-  if not i then goto done end --break]]
+  if not (
+    i == 1 and i <= len and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])
+  or
+    i <= len 
+    and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])
+    and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + chars[i-1])
+  ) then
+    i = 0
+    goto done
+  end --break]]
 }
 templates.poscap = {[[ -- ()
   caps[]], P.OPEN, [[] = i
@@ -222,7 +223,7 @@ templates.refcap = {[[ -- %n for n = 1, 9
   if subj:sub(open, close) == subj:sub(i, i + diff) then
     i = i + diff + 1
   else
-    i = false; goto done --break
+    i = 0; goto done --break
   end]]
 }
 templates.open = {[[ -- (
@@ -232,7 +233,7 @@ templates.close = {[[ -- )
       caps[]], P.CLOSE, [[] = i - 1]]
 }
   templates.dollar = {[[ --
-  if i ~= #subj + 1 then i = false end]]
+  if i ~= #subj + 1 then i = 0 end]]
 }
 
 
@@ -594,7 +595,7 @@ function compile (pat) -- local, declared above
   t_insert(rc, 1, "i0, i") -- for find, prepend the bounds of the match
   data[P.FRETCAPS] = t_concat(rc, ", ")
 
-  data[P.UNTIL] = anchored and "break until true" or "until i or i0 >= len"
+  data[P.UNTIL] = anchored and "break until true" or "until i ~=0 or i0 >= len"
 
   push(templates.tail, data, buf, backbuf, 0)
 
@@ -629,11 +630,12 @@ local function find(subj, pat, i, plain)
     return s_find(subj, pat, i, true)
   end
   i = checki(i, subj)
-  --[[
+  --[==[
   _g_src =  codecache[pat][M.SOURCE]
   _g_pat = pat
+  --[[DBG]] print(_g_src)
   return _wrp(pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, false))
-  --[=[]]
+  --[=[]==]
   return codecache[pat][M.CODE](subj, pat, checki(i, subj), false, false)
   --]=]
 end

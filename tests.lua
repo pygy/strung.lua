@@ -337,7 +337,7 @@ try("find", "aaaaaaaaaaaaaaaaaa", "a+")
 try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb")
 try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb")
 
-iter(1000)
+iter(10)
 
 try("find", "baa", "aa")
 try("find", "ba", "a")
@@ -350,7 +350,7 @@ try("find", "a", "a")
 try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb", nil, true)
 try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb", nil, true)
 
-iter(1000)
+iter(10)
 
 try("find", "baa", "aa", nil, true)
 try("find", "ba", "a", nil, true)
