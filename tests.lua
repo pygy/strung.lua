@@ -1,6 +1,8 @@
 local strung = require"strung"
+local s_gsub = string.gsub
+-- [[]] local v = require"jit.v"
+-- [[]] v.on("-")
 
--- local v = require"jit.v"
 --- First, the test and benchmark infrastructure.
 --- `try` and `gmtry` run both the original and strung version of the functions, 
 --- and compare either their ouput, or their speed if "bench" is passed as a 
@@ -12,26 +14,27 @@ local iter, try, gmtry
 if arg[1] == "bench" then 
     function try(f, a, s, d, g, h)
         -- jit.off() jit.on()
-        tsi, tSo = 0, 0
+        tstring, tStrung = 0, 0
         local ri, Ros
-        print(("-_"):rep(30))
-        print("Test: ", f, unpack{a, s, d, g, h})
+        -- print(("-_"):rep(30))
+        -- print("Test: ", )
         local tic = os.clock()
-        -- v.on("-")
         for i = 1, II do
             ri = {string[f](a, s, d, g, h)}
         end
-        tsi = os.clock() - tic
+        tstring = os.clock() - tic
         local tic = os.clock()
         for i = 1, II do
             Ro = {strung[f](a, s, d, g, h)}
         end
-        tSo = os.clock() - tic
-        print("strung/string: ", tSo/tsi, tsi/tSo, "///", tSo, tsi)
+        tStrung = os.clock() - tic
+        a = s_gsub(a, "[%z\1-\31\127-\255\\\"]", ""):sub(1,60)
+        args = '"' .. table.concat({f, a, s, d, g and "true" or nil, h}, '","') ..'"'
+        print(table.concat({tStrung/tstring, tStrung, tstring, args}, ","))
     end
     function gmtry(s, p)
-        print(("-_"):rep(30))
-        print("Test: ", "gmatch", s, p)
+        -- print(("-_"):rep(30))
+        -- print("Test: ", "gmatch", s, p)
         local ri, ro = {}, {}
         local tic = os.clock()
         for i = 1, II do
@@ -40,7 +43,7 @@ if arg[1] == "bench" then
                 ro[#ro + 1] = {a, b, c, d, e, f}
             end
         end
-        local tsi = os.clock() - tic
+        local tStrung = os.clock() - tic
         local tic = os.clock()
         for i = 1, II do
             ri = {}
@@ -48,8 +51,10 @@ if arg[1] == "bench" then
                 ri[#ri + 1] = {a, b, c, d, e, f}
             end
         end
-        local tSo = os.clock() - tic
-        print("strung/string: ", tSo/tsi, "///", tSo, tsi)
+        local tstring = os.clock() - tic
+        s = s_gsub(s, "[%z\1-\31\127-\255\\\"]", ""):sub(1,15)
+        args = '"gmatch","'..s..'","'..p..'"'
+        print(table.concat({tStrung/tstring, tStrung, tstring, args},","))
     end
     -- function gmtry()end
     function iter(n) II = BASE * n end
@@ -318,10 +323,21 @@ try("find", "aaaaaaaabaaabaaaaabb", "ba-bb")
 try("find", "aaa", "a+")
 try("find", "aaaaaaaaaaaaaaaaaa", "a+")
 
+-- iter(0.0001)
+-- try("find", ("aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaaaaaaabbb")
+
+-- s = {}
+-- for i = 1, 610000 do
+--     s[#s+1] = string.char(math.random(255))
+-- end
+-- s = table.concat(s)
+-- collectgarbage()
+-- try("find", s, "aaaaaaaaaaaaabbb")
+
 try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb")
 try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb")
 
-iter(100)
+iter(1000)
 
 try("find", "baa", "aa")
 try("find", "ba", "a")
@@ -330,6 +346,19 @@ try("find", "a", "aa")
 try("find", "aa", "a")
 try("find", "aa", "aa")
 try("find", "a", "a")
+
+try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb", nil, true)
+try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb", nil, true)
+
+iter(1000)
+
+try("find", "baa", "aa", nil, true)
+try("find", "ba", "a", nil, true)
+
+try("find", "a", "aa", nil, true)
+try("find", "aa", "a", nil, true)
+try("find", "aa", "aa", nil, true)
+try("find", "a", "a", nil, true)
 
 
 

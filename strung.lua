@@ -33,10 +33,16 @@ local o_setlocale = os.setlocale
 local ffi = require"ffi"
 local C = ffi.C
 
+local cdef, copy, new, ffi_string, typeof = ffi.cdef, ffi.copy, ffi.new, ffi.string, ffi.typeof
+
 local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
+-- C types
+local u32ary = ffi.typeof"uint32_t[?]"
+local u32ptr = ffi.typeof"uint32_t *"
+local constchar = ffi.typeof"const unsigned char *"
 
 --[[DBG]] local ffimt = {__gc = function(self, ...)
 -- [[DBG]]   print("GC", self, ...)
@@ -44,12 +50,6 @@ local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 --[[DBG]] end}
 
 --[[DBG]] local u32arys = ffi.metatype("struct {uint32_t ary[?];}", ffimt)
-
-local u32ary = ffi.typeof"uint32_t[?]"
-local u32ptr = ffi.typeof"uint32_t *"
-local constchar = ffi.typeof"const unsigned char *"
-
-local cdef, copy, new, ffi_string, typeof = ffi.cdef, ffi.copy, ffi.new, ffi.string, ffi.typeof
 
 ;(noglobals or type)("") -------------------------------------------------------------
 
@@ -281,6 +281,20 @@ local function normal(s)
   end
   return true
 end
+
+-- local specials = u32ary(8)
+-- for _, c in ipairs{"^", "$", "*", "+", "?", ".", "(", "[", "%", "-"} do
+--   bitset(specials, c:byte())
+-- end
+
+-- local function normal(s)
+--   local ptr = constchar(s)
+--   for i = 0, #s - 1 do
+--     if bittest(specials, ptr[i]) then return false end
+--   end
+--   return true
+-- end
+
 
 
 ---- Main pattern compiler ---
@@ -611,10 +625,10 @@ end
 
 
 local function find(subj, pat, i, plain)
-  i = checki(i, subj)
-  if plain then
-    return hash_find(subj, pat, i)
+  if plain or normal(pat) then
+    return s_find(subj, pat, i, true)
   end
+  i = checki(i, subj)
   --[[
   _g_src =  codecache[pat][M.SOURCE]
   _g_pat = pat
@@ -845,6 +859,7 @@ return {
   end,
   find = find,
   match = match,
+  gfind = gmatch,
   gmatch = gmatch,
   gsub = gsub,
   reset = reset,
