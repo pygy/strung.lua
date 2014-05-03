@@ -16,9 +16,9 @@ function f1(s, p)
 end
 
 a,b = strung.find('', '')    -- empty patterns are tricky
--- [[]]assert(a == 1 and b == 0);
+--[[]]assert(a == 1 and b == 0);
 a,b = strung.find('alo', '')
--- [[]] assert(a == 1 and b == 0)
+--[[]] assert(a == 1 and b == 0)
 a,b = strung.find('a\0o a\0o a\0o', 'a', 1)   -- first position
 assert(a == 1 and b == 1)
 a,b = strung.find('a\0o a\0o a\0o', 'a\0o', 2)   -- starts in the midle

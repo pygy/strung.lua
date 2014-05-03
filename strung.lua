@@ -240,7 +240,7 @@ templates.close = {[[ -- )
 ---- Simple pattern compiler ----
 
 local function hash_find (s, p, i) --
-  if p == "" then return i end
+  if p == "" then return i, i - 1 end
   local lp, ls = #p, #s
   if ls < lp then return nil end
   if p == s then return i, i + lp - 1 end
