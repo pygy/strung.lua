@@ -626,10 +626,10 @@ end
 
 
 local function find(subj, pat, i, plain)
-  if plain or normal(pat) then
-    return s_find(subj, pat, i, true)
-  end
   i = checki(i, subj)
+  if plain then
+    return hash_find(subj, pat, i, true)
+  end
   --[==[
   _g_src =  codecache[pat][M.SOURCE]
   _g_pat = pat

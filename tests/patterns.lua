@@ -1,112 +1,12 @@
+local c = require"tests.common"
+local try, gmtry, iter, allchars, dumpacc = c.try, c.gmtry, c.iter, c.allchars, c.dumpacc
+
 local strung = require"strung"
-local s_gsub = string.gsub
--- [[]] local v = require"jit.v"
--- [[]] v.on("-")
 
---- First, the test and benchmark infrastructure.
---- `try` and `gmtry` run both the original and strung version of the functions, 
---- and compare either their ouput, or their speed if "bench" is passed as a 
---- parameter to the script.
-
-local ttstr = require"util".val_to_string
-local BASE = 10000
-local iter, try, gmtry
-if arg[1] == "bench" then 
-    function try(f, a, s, d, g, h)
-        -- jit.off() jit.on()
-        tstring, tStrung = 0, 0
-        local ri, Ros
-        -- print(("-_"):rep(30))
-        -- print("Test: ", )
-        local tic = os.clock()
-        for i = 1, II do
-            ri = {string[f](a, s, d, g, h)}
-        end
-        tstring = os.clock() - tic
-        local tic = os.clock()
-        for i = 1, II do
-            Ro = {strung[f](a, s, d, g, h)}
-        end
-        tStrung = os.clock() - tic
-        a = s_gsub(a, "[%z\1-\31\127-\255\\\"]", ""):sub(1,60)
-        args = '"' .. table.concat({f, a, s, d, g and "true" or nil, h}, '","') ..'"'
-        print(table.concat({tStrung/tstring, tStrung, tstring, args}, ","))
-    end
-    function gmtry(s, p)
-        -- print(("-_"):rep(30))
-        -- print("Test: ", "gmatch", s, p)
-        local ri, ro = {}, {}
-        local tic = os.clock()
-        for i = 1, II do
-            ro = {}
-            for a, b, c, d, e, f in strung.gmatch(s, p) do
-                ro[#ro + 1] = {a, b, c, d, e, f}
-            end
-        end
-        local tStrung = os.clock() - tic
-        local tic = os.clock()
-        for i = 1, II do
-            ri = {}
-            for a, b, c, d, e, f in string.gmatch(s, p) do
-                ri[#ri + 1] = {a, b, c, d, e, f}
-            end
-        end
-        local tstring = os.clock() - tic
-        s = s_gsub(s, "[%z\1-\31\127-\255\\\"]", ""):sub(1,15)
-        args = '"gmatch","'..s..'","'..p..'"'
-        print(table.concat({tStrung/tstring, tStrung, tstring, args},","))
-    end
-    -- function gmtry()end
-    function iter(n) II = BASE * n end
-    iter(10)
-else
-    function try(f, ...)
-        local params = {...}
-        local ri, Ros
-        -- print(("-_"):rep(30))
-        -- print("Test: ", f, ...)
-        ri = {string[f](...)}
-        Ro = {strung[f](...)}
-        for i, v in ipairs(params) do params[i] = tostring(v) end
-        for i = 1, math.max(#ri, #Ro) do
-            strung.assert(ri[i] == Ro[i], params[2], table.concat({ 
-                table.concat(params, ", "), 
-                "ri:", table.concat(ri, ",  "), 
-                " \tRo:", table.concat(Ro, ", ")
-            }, " | "))
-        end
-    end
-    function gmtry(s, p)
-        local desc = "Test:  gmatch ".. s .." -- ".. p
-        local ri, ro = {}, {}
-        for a, b, c, d, e, f in strung.gmatch(s, p) do
-            ro[#ro + 1] = {a, b, c, d, e, f}
-        end
-        for a, b, c, d, e, f in string.gmatch(s, p) do
-            ri[#ri + 1] = {a, b, c, d, e, f}
-        end
-        strung.assert(#ro == #ri, p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
-        for i = 1, #ro do
-        strung.assert(#ro[i] == #ri[i], p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
-            for j = 1, #ri[i] do
-                strung.assert(ri[i][j] == ro[i][j], p, desc.."\nstring: \n"..ttstr(ri).."\n=/=/=/=/=/=/=/=/\nstrung:\n"..ttstr(ro))
-            end
-        end
-    end
-    iter = function()end
-    -- gmtry = iter
-end
-
-
+local bench = arg[1] == "bench"
 
 --- Character classes and locales ---
-local allchars do
-    local acc = {}
-    for i = 0, 255 do acc[i+1] = string.char(i) end
-    allchars = table.concat(acc)
-end
 
-try("find", allchars, "a")
 try("find", allchars, "%a+")
 gmtry(allchars, "%a+")
 
@@ -171,20 +71,10 @@ try("find", "aAb", "%f[%l]a")
 
 --- negative indices ---
 
-try("find", "fof", "f", -4)
-try("find", "fof", "f", -3)
-try("find", "fof", "f", -2)
-try("find", "fof", "f", -1)
-
 try("find", "fof", "[^o]", -4)
 try("find", "fof", "[^o]", -3)
 try("find", "fof", "[^o]", -2)
 try("find", "fof", "[^o]", -1)
-
-try("match", "fof", "f", -4)
-try("match", "fof", "f", -3)
-try("match", "fof", "f", -2)
-try("match", "fof", "f", -1)
 
 try("match", "fof", "[^o]", -4)
 try("match", "fof", "[^o]", -3)
@@ -228,6 +118,10 @@ try("find", "a(f()g(h(d d))[[][]]K)", "%b()%b[]", 2)
 try("find", "a(f()g(h(d d))[[][]]K)", "%b()%b[]")
 try("find", "a(f()g(h(d d))K)", "%b()")
 try("find", "a(f()g(h(d d))K", "%b()")
+
+--- references ---
+
+iter(3)
 try("find", "foobarfoo", "(foo)(bar)%2%1")
 try("find", "foobarbarfoo", "(foo)(bar)%2%1")
 try("find", "foobarbar", "(foo)(bar)%2")
@@ -323,43 +217,7 @@ try("find", "aaaaaaaabaaabaaaaabb", "ba-bb")
 try("find", "aaa", "a+")
 try("find", "aaaaaaaaaaaaaaaaaa", "a+")
 
--- iter(0.0001)
--- try("find", ("aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaaaaaaabbb")
 
--- s = {}
--- for i = 1, 610000 do
---     s[#s+1] = string.char(math.random(255))
--- end
--- s = table.concat(s)
--- collectgarbage()
--- try("find", s, "aaaaaaaaaaaaabbb")
-
-try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb")
-try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb")
-
-iter(10)
-
-try("find", "baa", "aa")
-try("find", "ba", "a")
-
-try("find", "a", "aa")
-try("find", "aa", "a")
-try("find", "aa", "aa")
-try("find", "a", "a")
-
-try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb", nil, true)
-try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb", nil, true)
-
-iter(10)
-
-try("find", "baa", "aa", nil, true)
-try("find", "ba", "a", nil, true)
-
-try("find", "a", "aa", nil, true)
-try("find", "aa", "a", nil, true)
-try("find", "aa", "aa", nil, true)
-try("find", "a", "a", nil, true)
-
-
-
-if arg[1] ~= "bench" then print "ok" end
+if not bench then
+    print "ok"
+end
