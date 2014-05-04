@@ -11,7 +11,7 @@ bench = arg[1] == "bench"
 --- parameter to the script.
 
 local ttstr = require"util".val_to_string
-local BASE = 50
+local BASE = 10000
 local iter, try, gmtry
 
 local acc, _acc = {string = {}, strung = {}}
@@ -26,7 +26,7 @@ if bench then
         local ri, Ros
         -- print(("-_"):rep(30))
         -- print("Test: ", )
-        for i = 1, 200 do
+        for i = 1, 1 do
             local tic = os.clock()
             for i = 1, II do
                 ri = {string[f](a, s, d, g, h)}
@@ -43,14 +43,14 @@ if bench then
         args = '"' .. table.concat({f, a, s, d or 1, g and "true" or nil, h}, '","') ..'"'
         table.sort(tstrung)
         table.sort(tstring)
-        print(table.concat({tstring[50]/tstrung[50], tstrung[50], tstring[50], args}, ","))
+        print(table.concat({tstring[1]/tstrung[1], tstrung[1], tstring[1], args}, ","))
     end
     local ri, ro = {}, {}
     function gmtry(s, p)
         -- print(("-_"):rep(30))
         -- print("Test: ", "gmatch", s, p)
         local tstring, tstrung = {}, {}
-        for i = 1, 200 do
+        for i = 1, 1 do
             local tic = os.clock()
             for i = 1, II do
                 for a, b, c, d, e, f in string.gmatch(s, p) do
@@ -68,7 +68,7 @@ if bench then
         end
         s = s_gsub(s, "[%z\1-\31\127-\255\\\"]", ""):sub(1,15)
         args = '"gmatch","'..s..'","'..p..'"'
-        print(table.concat({tstring[50]/tstrung[50], tstrung[50], tstring[50], args},","))
+        print(table.concat({tstring[1]/tstrung[1], tstrung[1], tstring[1], args},","))
     end
     -- [[]] function gmtry()end
     function iter(n) II = BASE * n end

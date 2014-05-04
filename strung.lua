@@ -33,23 +33,24 @@ local o_setlocale = os.setlocale
 local ffi = require"ffi"
 local C = ffi.C
 
-local cdef, copy, new, ffi_string, typeof = ffi.cdef, ffi.copy, ffi.new, ffi.string, ffi.typeof
+local     cdef,     copy,     metatype,     new, ffi_string,     typeof
+    = ffi.cdef, ffi.copy, ffi.metatype, ffi.new, ffi.string, ffi.typeof
 
 local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
 -- C types
-local u32ary = ffi.typeof"uint32_t[?]"
-local u32ptr = ffi.typeof"uint32_t *"
-local constchar = ffi.typeof"const unsigned char *"
+local u32ary = typeof"uint32_t[?]"
+local u32ptr = typeof"uint32_t *"
+local constchar = typeof"const unsigned char *"
 
 --[[DBG]] local ffimt = {__gc = function(self, ...)
 -- [[DBG]]   print("GC", self, ...)
 -- [[DBG]]   expose(self)
 --[[DBG]] end}
 
---[[DBG]] local u32arys = ffi.metatype("struct {uint32_t ary[?];}", ffimt)
+--[[DBG]] local u32arys = metatype("struct {uint32_t ary[?];}", ffimt)
 
 ;(noglobals or type)("") -------------------------------------------------------------
 
@@ -79,7 +80,7 @@ struct placeholder {
   static const int UNTIL = 5;
   static const int FRETCAPS = 6;
   static const int MRETCAPS = 7;
-  static const int GRETCAPS = 8;
+  static const int RETURN = 8;
   static const int TEST = 9;
   static const int NEXT = 10;
   static const int OPEN = 11;
@@ -102,33 +103,28 @@ local bittest, charsetsS, caps, constchar, expose = ...
 return function(subj, _, i, g_, match)
   local charsets = charsetsS.ary
   local len = #subj
-  if i > len then return nil end
   local i0 = i - 1
   local chars = constchar(subj) - 1 -- substract one to keep the 1-based index
   local c, open, close, diff
-  repeat
+  ]=], --[[
+  anchored and "do" or "repeat"]]"", [=[ --
     i0 = i0 + 1
-    do --repeat
+    do
       i = i0]=]
 }
+
 templates.tail = {[=[ --
-    ::done:: end --break until true
-  ]=], P.UNTIL , [=[ --
-  if i == 0 then return nil end
-  i = i - 1
-    if g_ then --gsub/gmatch
-    return i0, i]=], P.GRETCAPS, [=[ --
-  elseif match then
-    return ]=], P.MRETCAPS, [=[ --
-  else -- find
-    return ]=], P.FRETCAPS, [=[ --
-  end
+    ::done:: end
+  ]=], P.UNTIL,
+  P.RETURN, [=[ --
 end]=]
 }
+
 templates.one = {[[ -- c
   i = (]], P.TEST, [[) and i + 1 or 0
-  if i == 0 then goto done end --break]]
+  if i == 0 then goto done end]]
 }
+
 templates['*'] = {[=[ -- c*
     local i0, i1 = i
   while true do
@@ -137,28 +133,29 @@ templates['*'] = {[=[ -- c*
   i1 = i
   repeat
     i = i1
-    do --repeat
+    do
       ]=],
       P.NEXT, [[ --
-    ::done:: end --break until true
+    ::done:: end
     if i ~= 0 then break end
     i1 = i1 - 1
   until i1 < i0
-  --if not i then goto done end --break]]
+  --if not i then goto done end]]
 }
+
 templates['-'] = {[[ -- c-
   local i1 = i
   while true do
     i = i1
-    do --repeat]],
+    do --]],
       P.NEXT, [[ --
-    ::done:: end --break until true
+    ::done:: end
     if i ~= 0 then break end
     i = i1
     if not (]],P.TEST, [[) then i = 0; break end
     i1 = i1 + 1
   end
-  if i == 0 then goto done end --break]]
+  if i == 0 then goto done end]]
 }
 
 templates["?"] = {[[ -- c?
@@ -169,9 +166,9 @@ templates["?"] = {[[ -- c?
     ::second::
     i = _i
     ::first::
-    do --repeat]],
+    do --]],
       P.NEXT, [[ --
-    ::done:: end --break until true
+    ::done:: end
     if i == 0 and q then q = false; goto second end
   end]]
 }
@@ -197,14 +194,14 @@ templates.ballanced = {[[ -- %b
       end
     until count == 0 or i == 0
   end
-  if i == 0 then goto done end --break
+  if i == 0 then goto done end
   i = i + 1]]
 }
 templates.frontier = {[[ -- %f
   if not (
     i == 1 and i <= len and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])
   or
-    i <= len 
+    i <= len
     and ]], P.POS, [[ bittest(charsets, ]], P.SET, [[ + chars[i])
     and ]], P.NEG, [[ bittest(charsets, ]], P.SET, [[ + chars[i-1])
   ) then
@@ -230,10 +227,10 @@ templates.open = {[[ -- (
   caps[]], P.OPEN, [[] = i]]
 }
 templates.close = {[[ -- )
-      caps[]], P.CLOSE, [[] = i - 1]]
+  caps[]], P.CLOSE, [[] = i - 1]]
 }
   templates.dollar = {[[ --
-  if i ~= #subj + 1 then i = 0 end]]
+  if i ~= #subj + 1 then i = 0 end -- $]]
 }
 
 
@@ -302,13 +299,37 @@ end
 
 local --[[function]] compile
 
---- The cache for the compiled pattern matchers.
-local codecache = setmetatable({}, {
+--- The caches for the compiled pattern matchers.
+local findcodecache
+
+findcodecache = setmetatable({}, {
   __mode="k",
   __index=function(codecache, pat)
 
-    local code = normal(pat) and simple(pat) or compile(pat)
-    rawset(codecache, pat, code)
+    local code = normal(pat) and simple(pat) or compile(pat, "find")
+    rawset(findcodecache, pat, code)
+    return code
+  end
+})
+
+local matchcodecache
+matchcodecache = setmetatable({}, {
+  __mode="k",
+  __index=function(codecache, pat)
+
+    local code = normal(pat) and simple(pat) or compile(pat, "match")
+    rawset(matchcodecache, pat, code)
+    return code
+  end
+})
+
+local gcodecache
+gcodecache = setmetatable({}, {
+  __mode="k",
+  __index=function(codecache, pat)
+
+    local code = normal(pat) and simple(pat) or compile(pat, "g")
+    rawset(gcodecache, pat, code)
     return code
   end
 })
@@ -452,7 +473,7 @@ local function suffix(i, ind, len, pat, data, buf, backbuf)
   return i, ind + 2
 end
 
-local function _compile(pat, i, caps, sets, data, buf, backbuf)
+local function body(pat, i, caps, sets, data, buf, backbuf)
   local len = #pat
   local ind = 1
   local c = pat:sub(i,i)
@@ -463,6 +484,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
       if pat:sub(i + 1, i + 1) == ")" then
         caps[#caps + 1] = 1
         caps[#caps + 1] = 0
+        caps.type[#caps.type + 1] = "pos"
         data[P.OPEN] = -#caps
         data[P.CLOSE] = -#caps + 1
         push(templates.poscap, data, buf,backbuf, ind)
@@ -471,6 +493,7 @@ local function _compile(pat, i, caps, sets, data, buf, backbuf)
         caps[#caps + 1] = 1
         caps[#caps + 1] = -1
         caps.open = caps.open + 1 -- keep track of opened captures
+        caps.type[#caps.type + 1] = "txt"
         data[P.OPEN] = -#caps
         push(templates.open, data, buf,backbuf, ind)
       end
@@ -558,54 +581,79 @@ struct M {
   static const int CODE = 1;
   static const int SOURCE = 2;
   static const int NCAPS = 3;
-  static const int CHARSETS = 4;
-}]] local M = new"struct M"
+  static const int CAPS = 4;
+}]] local M = new"struct M" -- fields of the "_M_atchers" table.
 
 
-function compile (pat) -- local, declared above
+function compile (pat, mode) -- local, declared above
   local anchored = (pat:sub(1,1) == "^")
-  local caps, sets = {open = 0}, {}
+  local caps, sets = {open = 0, type={}}, {}
   local data = {}
-  local buf, backbuf = {templates.head[1]}, {}
+  local buf = {
+    templates.head[1],
+    anchored and "do" or "repeat",
+    templates.head[3]
+    }
+  local backbuf = {}
   local i = anchored and 2 or 1
 
-  _compile(pat, i, caps, sets, data, buf, backbuf)
+  body(pat, i, caps, sets, data, buf, backbuf)
 
   -- pack the charsets and captures in an FFI array.
+  local ncaps = #caps / 2
   local charsets, capsptr = pack(sets, #caps/2)
+
+  -- append the tail of the matcher to its head.
   for i = #backbuf, 1, -1 do buf[#buf + 1] = backbuf[i] end
+
+  --
+  data[P.UNTIL] = anchored and "end" or "until i ~=0 or i0 >= len"
+
 
   -- prepare the return values
   assert(caps.open == 0, "invalid pattern: one or more captures left open")
   assert(#caps<400, "too many captures in pattern (max 200)")
 
-  local rc = {}
-  if #caps ~= 0 then
+  if mode == "g" then
+    data[P.RETURN] = [[ --
+  caps[0], caps[1] = i0, i-1
+  return i ~= 0]]
+  elseif ncaps == 0 then
+    if mode == "find" then
+      data[P.RETURN] = [[ --
+  if i == 0 then return nil end
+  return i0, i -1]]
+    else
+      data[P.RETURN] = [[ --
+  if i == 0 then return nil end
+  return subj:sub(i0, i - 1)]]
+    end
+  else
+    local rc = {}
     for i = 2, #caps, 2 do
-      rc[#rc + 1] = "caps[" .. -i + 1 .. "] == 4294967295 and caps[".. -i
-                 .. "] or subj:sub(caps[".. -i .."], caps[" .. -i + 1 .. "]) "
+      if caps.type[i/2] == "pos" then
+        rc[#rc + 1] = "caps[".. -i.. "]"
+      else
+        rc[#rc + 1] = "subj:sub(caps[".. -i .."], caps[" .. -i + 1 .. "]) "
+      end
     end
     data[P.MRETCAPS] = t_concat(rc, ", ")
-    data[P.GRETCAPS] = ", caps"
-  else
-    data[P.MRETCAPS] = "subj:sub(i0, i)"
-    data[P.GRETCAPS] = ""
+
+    if mode == "find" then t_insert(rc, 1, "i0, i - 1") end
+    data[P.RETURN] = [[ --
+  if i == 0 then return nil end
+  return ]]..t_concat(rc, ", ")
   end
-
-  t_insert(rc, 1, "i0, i") -- for find, prepend the bounds of the match
-  data[P.FRETCAPS] = t_concat(rc, ", ")
-
-  data[P.UNTIL] = anchored and "break until true" or "until i ~=0 or i0 >= len"
-
   push(templates.tail, data, buf, backbuf, 0)
 
   -- load the source
   local source = t_concat(buf)
+  -- [[DBG]] print("Compile; mode, ncaps, source", mode, ncaps, "\n"..source)
   local loader, err = loadstring(source)
   if not loader then error(source.."\nERROR:"..err) end
   local code = loader(bittest, charsets, capsptr, constchar, expose)
-  return {code,   source,   #caps/2}--,   charsets}
-     -- m.CODE, m.SOURCE,   m.NCAPS, m.CHARSETS -- anchor the charset array? Seems to fix the segfault.
+  return {code,   source,   ncaps,   capsptr}
+     -- m.CODE, m.SOURCE,   m.NCAPS, m.CAPS -- anchor the charset array? Seems to fix the segfault.
 end
 
 
@@ -618,46 +666,12 @@ local function checki(i, subj)
   return i
 end
 
-local _g_src, _g_pat
-local function _wrp (success, ...)
-  if not success then error("SOURCE\n".._g_src.. "\n".._g_pat.. "\n".. (...)) end
+local function _wrp (src, pat, success, ...)
+  if not success then error("-=-=-=-=-=-=-=-=-=-=-=-=-=-\n"..src.. "\n"..pat.. "\n".. (...)) end
   return ...
 end
 
-
-local function find(subj, pat, i, plain)
-  i = checki(i, subj)
-  if plain then
-    return hash_find(subj, pat, i, true)
-  end
-  --[==[
-  _g_src =  codecache[pat][M.SOURCE]
-  _g_pat = pat
-  --[[DBG]] print(_g_src)
-  return _wrp(pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, false))
-  --[=[]==]
-  return codecache[pat][M.CODE](subj, pat, checki(i, subj), false, false)
-  --]=]
-end
-
-local function match(subj, pat, i, raw)
-  --[[
-  _g_src =  codecache[pat][M.SOURCE]
-  _g_pat = pat
-  return _wrp(pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, true))
-  --[=[]]
-  return codecache[pat][M.CODE](subj, pat, checki(i, subj), false, true)
-  --]=]
-end
-
-
--- gmatch paraphernalia --
-
---- lazily build a table of functions that produce n captures at a given offset.
---- the offset * n combo is encoded as a single number by lshifting the offset
---- by 8 then adding it to n.
-local returning = setmetatable({}, {__index = function(self, a)
-  local n = a[M.NCAPS]
+local producers = setmetatable({}, {__index = function(self, n)
   local acc = {}
   for open = -2, -n * 2, -2 do
     local close = open + 1
@@ -670,119 +684,164 @@ local returning = setmetatable({}, {__index = function(self, a)
       return ]=]..t_concat(acc, ", ")..[[ --
     end
   ]])()
-  self[a] = res
+  self[n] = res
   return res
 end})
+producers[0] = function(caps, subj)
+  return subj:sub(caps[0], caps[1])
+end
 
 
-cdef[[
-struct GM {
-  static const int CODE = 1;
-  static const int SUBJ = 2;
-  static const int PAT = 3;
-  static const int INDEX = 4;
-  static const int RET = 5;
-}]] local GM = new"struct GM"
 
-local function gmatch_iter(state)
-  local s, e, c = state[GM.CODE](state[GM.SUBJ], state[GM.PAT], state[GM.INDEX], true, false)
-  if s then state[GM.INDEX] = e + 1
-    if c then
-      return state[GM.RET](c, state[2])
+local function find(subj, pat, i, plain)
+  i = checki(i, subj)
+  if plain then
+    return hash_find(subj, pat, i, true)
+  end
+  --[==[
+  return _wrp(
+    codecache[pat][M.SOURCE],
+    pat,
+    pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, false)
+  )
+  --[=[]==]
+  return findcodecache[pat][M.CODE](subj, pat, checki(i, subj), false, false)
+  --]=]
+end
+
+local function match(subj, pat, i, raw)
+  --[[
+  return _wrp(
+    codecache[pat][M.SOURCE],
+    pat,
+    pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, true)
+  )
+  --[=[]]
+  return matchcodecache[pat][M.CODE](subj, pat, checki(i, subj), false, true)
+  --]=]
+end
+
+
+-- gmatch paraphernalia --
+
+--- lazily build a table of functions that produce n captures at a given offset.
+--- the offset * n combo is encoded as a single number by lshifting the offset
+--- by 8 then adding it to n.
+
+local gmatch do
+  cdef[[
+  struct GM {
+    static const int CODE = 1;
+    static const int SUBJ = 2;
+    static const int PAT = 3;
+    static const int INDEX = 4;
+    static const int PROD = 5;
+    static const int CAPS = 6;
+  }]] local GM = new"struct GM"
+
+  local function gmatch_iter(state)
+    local success = state[GM.CODE](state[GM.SUBJ], state[GM.PAT], state[GM.INDEX], true, false)
+    local caps = state[GM.CAPS]
+    if success then
+      state[GM.INDEX] = caps[1] + 1
+      return state[GM.PROD](caps, state[2])
     else
-      return state[2]:sub(s, e)
+      return nil
     end
-  else
-    return nil
+  end
+
+  function gmatch(subj, pat)
+    local c = gcodecache[pat]
+    local state = {
+      c[M.CODE],
+      subj,
+      pat,
+      1,                     -- GM.INDEX
+      producers[c[M.NCAPS]], -- GM.PROD
+      c[M.CAPS]              -- GM.CAPS
+    }
+    return gmatch_iter, state
   end
 end
-
-local function gmatch(subj, pat)
-  local c = codecache[pat]
-  local state = {c[M.CODE], subj, pat, 1, returning[c]}
-  -- see the returning .__index definition for the rationale for the bit twiddling.
-      return gmatch_iter, state
-end
-
-local _gsub = setmetatable({
-  -- foo
-}, {__index = function(_, typ) error("strung.gsub can't handle replacement of type "..typ) end})
-
-
--- gsub helpers --
-
---- preprepl[o] --> preprocess then cache the replacement values for
---- gsub. used for strings with
-local preprepl = setmetatable({}, {__index = function()
-  -- return typ, res
-end})
 
 local gsub do
   local BUFF_INIT_SIZE = 16
 
   local acache = setmetatable({},{__mode = "k"})
-  local _buffer = typeof[[
-    struct{
-      uint32_t s;
-      uint32_t i;
-      unsigned char* a;
-    }
-  ]] -- size, index, array
-
-  local charary = typeof"unsigned char[?]"
+  local Buffer = metatype(
+    --               size,       index,            array
+    "struct{uint32_t s; uint32_t i; unsigned char* a;}",
+    {__gc = function(self) C.free(self.a) end}
+  )
+  local charsize = ffi.sizeof"char"
   local function buffer()
-    local b = _buffer(BUFF_INIT_SIZE, 0, nil)
-    local a = charary(BUFF_INIT_SIZE)
-    b.a = a
-    acache[b] = a
+    local b = Buffer(
+      BUFF_INIT_SIZE,
+      0,
+      C.malloc(BUFF_INIT_SIZE * charsize)
+    )
     return b
   end
 
-  local function doublebuf(b)
-    local size = b.s * 2
+  local function ensurelength (b, size)
+    if size <= acc.s then return end
+    local a = b.a
+    size = b.s * 2
+    b.a = C.malloc(size * charsize)
     b.s = size
-    a = charary(size)
     copy(b.a, a, b.i)
-    b.a = a
-    acache[b] = a
+    C.free(a)
   end
 
   local function mergebuf(acc, new)
-    if acc.i + new.i > acc.s then doublebuf(acc) end
+    ensurelength(acc, acc.i + new.i)
     copy(acc.a + acc.i, new.a, new.i)
     acc.i = acc.i + new.i
   end
 
   local function mergestr(acc, str)
-    if acc.i + #str > acc.s then doublebuf(acc) end
+    ensurelength(acc, acc.i + #str)
     copy(acc.a + acc.i, constchar(str), #str)
     acc.i = acc.i + #str
   end
 
   local function mergebytes(acc, ptr, len)
-    if acc.i + len > acc.s then doublebuf(acc) end
+    ensurelength(acc, acc.i + len)
     copy(acc.a + acc.i, ptr, len)
     acc.i = acc.i + len
   end
 
-  local function table_handler(subj, i, e, caps, producer, buf, tbl)
-    --
+  local function table_handler(subj, caps, producer, buf, tbl)
+    local res = tbl[producer(subj, caps)]
+    if not res then
+      local i, e = caps[0], caps [1]
+      mergeptr(buf, constchar(subj) + i - 1, e - i + 1)
+    else
+      local t = type(res)
+      if t == "string" or t == "number" then
+        res = tostring(res)
+        mergestr(buf, res)
+      else
+        error("invalid replacement value (a "..t..")")
+      end
+    end
   end
 
-  local function string_handler(subj, i, e, caps, producer, buf, str)
+  local function string_handler(subj, caps, producer, buf, str)
     mergestr(buf, str)
   end
 
-  local function pattern_handler(subj, i, e, caps, producer, buf, pat)
+  local function pattern_handler(subj, caps, producer, buf, pat)
     --
   end
 
-  local function function_handler(subj, i, e, caps, producer, buf, fun)
+  local function function_handler(subj, caps, producer, buf, fun)
     local res = fun(producer(caps))
     if not res then
+      local i, e = caps[0], caps [1]
       mergebytes(acc, subj + i, e - i + 1)
     else
-      t = type(res)
+      local t = type(res)
       if t == "string" or t == "number" then
         res = tostring(res)
         mergestr(buf, res)
@@ -795,52 +854,58 @@ local gsub do
   local function select_handler(ncaps, repl)
     t = type(repl)
     if t == "string" then
-      return repl:find("%%%d") and pattern_handler or string_handler
+      if repl:find("%%[%d%%]") then
+        return pattern_handler, producers[repl]
+      else
+        return string_handler, string_handler
+      end
     elseif t == "table" then
-      return table_handler
+      return table_handler, ncaps == 0 and producers[0] or producers[1]
     elseif t == "function" then
-      return function_handler
+      return function_handler, producers[ncaps]
     else
       error("Bad replacement type for GSUB TODO IMPROVE MESSAGE.")
     end
   end
 
   function gsub(subj, pat, repl)
-    local c = codecache[pat]
+    local c = gcodecache[pat]
     local matcher = c[M.CODE]
     local handler, producer = select_handler(c[M.NCAPS], repl)
+    local caps = c[M.CAPS]
+    matcher(subj, pat, 1, true, false)
 
-    local i, e, caps = matcher(subj, pat, 1, true, false)
-    if not i then return nil end
+    if caps[0] == 0 then return nil end
 
-    local buf = buffer()
+    local buf = Buffer()
     local subjptr = constchar(subj)
     local last_e = 0
-    while i do
-      mergebytes(buf, subjptr + last_e, i - last_e - 1)
-      last_e = e
-      handler(subj, i, e, caps, producer, buf, repl)
-      --[[DBG]] print("Loop; i, e:", i,e)
-      i, e, caps = matcher(subj, pat, e + 1, true, false)
+    while caps[0] ~= 0 do
+      mergebytes(buf, subjptr + last_e, caps[0] - last_e - 1)
+      last_e = caps[1]
+      handler(subj, caps, producer, buf, repl)
+      -- [[DBG]] print("Loop; i, e:", i,e)
+      matcher(subj, pat, caps[1] + 1, true, false)
     end
     mergebytes(buf, subjptr + last_e, #subj - last_e)
     return ffi_string(buf.a, buf.i)
   end
 
 end
+
 -- used in the test suite.
 local function _assert(test, pat, msg)
   if not test then
-    local code = codecache[pat][3]
+    local source = findcodecache[pat][M.SOURCE]
     print(("- -"):rep(60))
-    print(code)
+    print(source)
     print(("- "):rep(60))
     print(msg)
     error()
   end
 end
 
--- reset the
+-- reset the compiler cache to match the new locale.
 local function reset ()
   codecache = setmetatable({}, getmetatable(codecache))
   charclass = setmetatable({}, getmetatable(charclass))
@@ -849,16 +914,14 @@ local function setlocale (loc, mode)
   reset()
   return o_setlocale(loc, mode)
 end
+
+local function showpat(p)
+  print(p,"\n---------")
+  print(codecache[p][M.SOURCE])
+end
 -------------------------------------------------------------------------------
 
 return {
-  install = function()
-    s.find = find
-    s.match = match
-    s.gmatch = gmatch
-    s.gsub = gsub
-    os.setlocale = setlocale
-  end,
   find = find,
   match = match,
   gfind = gmatch,
@@ -866,5 +929,6 @@ return {
   gsub = gsub,
   reset = reset,
   setlocale = setlocale,
-  assert = _assert
+  assert = _assert,
+  showpat = showpat
 }

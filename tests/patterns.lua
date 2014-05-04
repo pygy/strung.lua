@@ -29,19 +29,6 @@ gmtry(allchars, "%z+")
 
 iter(10)
 
-local _f, _m, _gm, _gs, _ol = string.find, string.match, string.gmatch, string.gsub, os.locale
-
-strung.install()
-assert(
-    string.find == strung.find
-    and string.match == strung.match
-    and string.gmatch == strung.gmatch
-    --and string.gsub == strung.gsub
-    and os.locale == strung.locale
-    , "`strung.install()` failed.")
---restore the originals.
-string.find, string.match, string.gmatch, string.gsub, os.locale = _f, _m, _gm, _gs, _ol
-
 
 --- The tests ---
 
@@ -80,6 +67,12 @@ try("match", "fof", "[^o]", -4)
 try("match", "fof", "[^o]", -3)
 try("match", "fof", "[^o]", -2)
 try("match", "fof", "[^o]", -1)
+
+try("match", "fof", "f", -4)
+try("match", "fof", "f", -3)
+try("match", "fof", "f", -2)
+try("match", "fof", "f", -1)
+
 
 --- gmatch ---
 
