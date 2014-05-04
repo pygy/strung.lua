@@ -58,7 +58,7 @@ In my microbenchmarks, depending on the kind of pattern, and on some luck regard
 
 ### The Frontier Pattern (`%f[...]`)
 
-Officially does not exist. Or does it? [1]
+Officially supported since Lua 5.2, but both Lua 5.1 and LuaJIT handle it, and so does Strung.
 
 ### Bad patterns
 
@@ -114,4 +114,3 @@ strung/string:  3.1869296949683
 Test:   gmatch  abcdabcdabcd    ((a)(b)c)()(d)
 strung/string:  0.29895569825517
 ```
-[1] Yes, *strung* supports the frontier pattern.
