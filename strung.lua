@@ -20,15 +20,17 @@ pcall(function() -- used only for development.
   expose, noglobals = _u.expose, _u.noglobals
 end)
 
-local os, s, t = require"os", require"string", require"table"
+local m_max = require"math.max".max
+
+local o_setlocale = require"os".setlocale
+
+local s, t = require"string", require"table"
 
 local s_byte, s_char, s_find, s_gmatch, s_sub, s_match
     = s.byte, s.char, s.find, s.gmatch, s.sub, s.match
 
 local t_concat, t_insert, t_remove
     = t.concat, t.insert, t.remove
-
-local o_setlocale = os.setlocale
 
 local ffi = require"ffi"
 local C = ffi.C
@@ -323,13 +325,24 @@ matchcodecache = setmetatable({}, {
   end
 })
 
-local gcodecache
-gcodecache = setmetatable({}, {
+local gmatchcodecache
+gmatchcodecache = setmetatable({}, {
   __mode="k",
   __index=function(codecache, pat)
 
-    local code = normal(pat) and simple(pat) or compile(pat, "g")
-    rawset(gcodecache, pat, code)
+    local code = --[[normal(pat) and simple(pat) or]] compile(pat, "gmatch")
+    rawset(gmatchcodecache, pat, code)
+    return code
+  end
+})
+
+local gsubcodecache
+gsubcodecache = setmetatable({}, {
+  __mode="k",
+  __index=function(codecache, pat)
+
+    local code = --[[normal(pat) and simple(pat) or]] compile(pat, "gsub")
+    rawset(gsubcodecache, pat, code)
     return code
   end
 })
@@ -601,7 +614,10 @@ function compile (pat, mode) -- local, declared above
 
   -- pack the charsets and captures in an FFI array.
   local ncaps = #caps / 2
-  local charsets, capsptr = pack(sets, #caps/2)
+  local charsets, capsptr = pack(
+    sets,
+    mode == "gsub" and max(1, ncaps) or ncaps
+  )
 
   -- append the tail of the matcher to its head.
   for i = #backbuf, 1, -1 do buf[#buf + 1] = backbuf[i] end
@@ -614,20 +630,29 @@ function compile (pat, mode) -- local, declared above
   assert(caps.open == 0, "invalid pattern: one or more captures left open")
   assert(#caps<400, "too many captures in pattern (max 200)")
 
-  if mode == "g" then
-    data[P.RETURN] = [[ --
-  caps[0], caps[1] = i0, i-1
-  return i ~= 0]]
-  elseif ncaps == 0 then
+  if ncaps == 0 then
     if mode == "find" then
       data[P.RETURN] = [[ --
   if i == 0 then return nil end
   return i0, i -1]]
-    else
+    elseif mode == "match"
       data[P.RETURN] = [[ --
   if i == 0 then return nil end
   return subj:sub(i0, i - 1)]]
+    elseif mode == "gmatch" then
+      data[P.RETURN] = [[ --
+  caps[0], caps[1] = i0, i-1
+  return i ~= 0]]
+    elseif mode == "gsub" then
+      data[P.RETURN] = [[ --
+  caps[0], caps[1] = i0, i-1
+  caps[-2], caps[-1] = i0, i-1
+  return i ~= 0]]
     end
+  elseif mode:sub(1,1) == "g"
+    data[P.RETURN] = [[ --
+  caps[0], caps[1] = i0, i-1
+  return i ~= 0]]
   else
     local rc = {}
     for i = 2, #caps, 2 do
@@ -637,9 +662,9 @@ function compile (pat, mode) -- local, declared above
         rc[#rc + 1] = "subj:sub(caps[".. -i .."], caps[" .. -i + 1 .. "]) "
       end
     end
-    data[P.MRETCAPS] = t_concat(rc, ", ")
 
     if mode == "find" then t_insert(rc, 1, "i0, i - 1") end
+
     data[P.RETURN] = [[ --
   if i == 0 then return nil end
   return ]]..t_concat(rc, ", ")
@@ -751,7 +776,7 @@ local gmatch do
   end
 
   function gmatch(subj, pat)
-    local c = gcodecache[pat]
+    local c = gmatchcodecache[pat]
     local state = {
       c[M.CODE],
       subj,
