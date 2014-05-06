@@ -929,9 +929,10 @@ local gsub do
     subj = constchar(subj) - 1 -- subj is anchored in `gsub()`
     pat = constchar(pat) - 1 -- ditto
     while i <= L do
-      if pat[i] == 37 then -- "%" --> capture or escape sequence.
+      local n = pat[i]
+      if n == 37 then -- "%" --> capture or escape sequence.
         i = i + 1
-        local n = pat[i]
+        n = pat[i]
         if 48 <= n and n <= 57 then -- "0" <= n <= "9"
           n = n - 48
           if n > ncaps then error"invalid capture index" end
@@ -939,10 +940,10 @@ local gsub do
           local ll = caps[-2*n + 1] - s + 1
           mergebytes(buf, subj + s, ll)
         else
-          addonebyte(buf, n)
+          mergeonebyte(buf, n)
         end
       else
-        addonebyte (buf, n)
+        mergeonebyte (buf, n)
       end
       i = i + 1
     end
@@ -1006,7 +1007,6 @@ local gsub do
     mergebytes(buf, subjptr + last_e, #subj - last_e)
     return ffi_string(buf.a, buf.i), count
   end
-
 end
 
 -- used in the test suite.
