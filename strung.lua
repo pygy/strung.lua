@@ -20,7 +20,7 @@ pcall(function() -- used only for development.
   expose, noglobals = _u.expose, _u.noglobals
 end)
 
-local m_max = require"math.max".max
+local m_max = require"math".max
 
 local o_setlocale = require"os".setlocale
 
@@ -616,7 +616,7 @@ function compile (pat, mode) -- local, declared above
   local ncaps = #caps / 2
   local charsets, capsptr = pack(
     sets,
-    mode == "gsub" and max(1, ncaps) or ncaps
+    mode == "gsub" and m_max(1, ncaps) or ncaps
   )
 
   -- append the tail of the matcher to its head.
@@ -635,7 +635,7 @@ function compile (pat, mode) -- local, declared above
       data[P.RETURN] = [[ --
   if i == 0 then return nil end
   return i0, i -1]]
-    elseif mode == "match"
+    elseif mode == "match" then
       data[P.RETURN] = [[ --
   if i == 0 then return nil end
   return subj:sub(i0, i - 1)]]
@@ -649,7 +649,7 @@ function compile (pat, mode) -- local, declared above
   caps[-2], caps[-1] = i0, i-1
   return i ~= 0]]
     end
-  elseif mode:sub(1,1) == "g"
+  elseif mode:sub(1,1) == "g" then
     data[P.RETURN] = [[ --
   caps[0], caps[1] = i0, i-1
   return i ~= 0]]
@@ -791,7 +791,8 @@ end
 
 local gsub do
   local BUFF_INIT_SIZE = 16
-
+  cdef"void* malloc (size_t size);"
+  cdef"void free (void* ptr);"
   local acache = setmetatable({},{__mode = "k"})
   local Buffer = metatype(
     --               size,       index,            array
@@ -808,39 +809,45 @@ local gsub do
     return b
   end
 
-  local function ensurelength (b, size)
-    if size <= acc.s then return end
-    local a = b.a
-    size = b.s * 2
-    b.a = C.malloc(size * charsize)
-    b.s = size
-    copy(b.a, a, b.i)
+  local function reserve (buf, size)
+    if size <= buf.s then return end
+    local a = buf.a
+    size = buf.s * 2
+    buf.a = C.malloc(size * charsize)
+    buf.s = size
+    copy(buf.a, a, buf.i)
     C.free(a)
   end
 
-  local function mergebuf(acc, new)
-    ensurelength(acc, acc.i + new.i)
+  local function mergebuf (acc, new)
+    reserve(acc, acc.i + new.i)
     copy(acc.a + acc.i, new.a, new.i)
     acc.i = acc.i + new.i
   end
 
-  local function mergestr(acc, str)
-    ensurelength(acc, acc.i + #str)
+  local function mergestr (acc, str)
+    reserve(acc, acc.i + #str)
     copy(acc.a + acc.i, constchar(str), #str)
     acc.i = acc.i + #str
   end
 
-  local function mergebytes(acc, ptr, len)
-    ensurelength(acc, acc.i + len)
+  local function mergebytes (acc, ptr, len)
+    reserve(acc, acc.i + len)
     copy(acc.a + acc.i, ptr, len)
     acc.i = acc.i + len
   end
 
-  local function table_handler(subj, caps, producer, buf, tbl)
+  local function mergeonebyte (acc, byte)
+    reserve(acc, acc.i + 1)
+    acc.i = acc.i + 1
+    acc.a[acc.i] = byte
+  end
+
+  local function table_handler (subj, caps, producer, buf, tbl)
     local res = tbl[producer(subj, caps)]
     if not res then
       local i, e = caps[0], caps [1]
-      mergeptr(buf, constchar(subj) + i - 1, e - i + 1)
+      mergebytes(buf, constchar(subj) + i - 1, e - i + 1)
     else
       local t = type(res)
       if t == "string" or t == "number" then
@@ -852,15 +859,102 @@ local gsub do
     end
   end
 
-  local function string_handler(subj, caps, producer, buf, str)
+  local function string_handler (_, _, _, _, buf, str)
     mergestr(buf, str)
   end
 
-  local function pattern_handler(subj, caps, producer, buf, pat)
-    --
+  local function prepare(repl, n, buf, i)
+    local i0 = i
+    local c = repl[i]
+    if c == 37 then -- "%"
+      i = i + 1
+      if i == n then return end -- skip a "%" in terminal position.
+      c = repl[i]
+      if not (48 <= c and c <= 57) then return prepare(repl, n, buf, i) end
+      i = i
+      mergeonebyte(buf, 0)
+      mergeonebyte(buf, c - 48)
+      return prepare(repl, n, buf, i + 1)
+    else
+      local bufi =  buf.i + 2
+      mergeonebyte(buf, 0)
+      while true do
+        mergeonebyte(buf, c)
+        i = i + 1
+        if buf.i - bufi > 255 then
+          buf[bufi] = 255
+          bufi = buf.i + 2
+        end
+        c = repl[i]
+        if c == 37 then -- "%"
+          i = i + 1
+          if i == n then
+            buf[bufi] = buf.i - bufi
+            return
+          end
+          if 48 <= c and c <= 57 then return prepare(repl, n, buf, i - 1) end
+        end
+        mergeonebyte(buf, c)
+        i = i + 1
+      end
+    end
   end
 
-  local function function_handler(subj, caps, producer, buf, fun)
+  local charary = typeof"unsigned char[?]"
+  local long_pattern_cache = setmetatable({}, {__index = function(self, repl)
+    local buf = buffer()
+    repl = constchar(repl)
+    prepare(repl, buf, 0)
+    return buf
+  end})
+
+  local function long_pattern_handler (subj, caps, ncaps, replacement, buf, pat)
+    local i, L, ary = 0, replacement.i, replacement.a
+    ncaps = m_max(1, ncaps) -- for simple matchers, %0 and %1 mean the same thing.
+    subj = constchar(subj) - 1 -- subj is anchored in `gsub()`
+    while i < L do
+      local l = ary[i]
+      i = i + 1
+      if l == 0 then
+        local n = ary[i]
+        if n > ncaps then error"invalid capture index" end
+        local s = caps[-2*n]
+        local ll = caps[-2*n + 1] - s
+        mergebytes(buf, subj + s, ll)
+        i = i + 1
+      else
+        mergebytes(buf, ary + i, l)
+        i = i + l
+      end
+    end
+  end
+
+  local function short_pattern_handler (subj, caps, ncaps, _, buf, pat)
+    local i, L = 1, #pat
+    ncaps = m_max(1, ncaps) -- for simple matchers, %0 and %1 mean the same thing.
+    subj = constchar(subj) - 1 -- subj is anchored in `gsub()`
+    pat = constchar(pat) - 1 -- ditto
+    while i <= L do
+      if pat[i] == 37 then -- "%" --> capture or escape sequence.
+        i = i + 1
+        local n = pat[i]
+        if 48 <= n and n <= 57 then -- "0" <= n <= "9"
+          n = n - 48
+          if n > ncaps then error"invalid capture index" end
+          local s = caps[-2*n]
+          local ll = caps[-2*n + 1] - s + 1
+          mergebytes(buf, subj + s, ll)
+        else
+          addonebyte(buf, n)
+        end
+      else
+        addonebyte (buf, n)
+      end
+      i = i + 1
+    end
+  end
+
+  local function function_handler (subj, caps, ncaps, producer, buf, fun)
     local res = fun(producer(caps))
     if not res then
       local i, e = caps[0], caps [1]
@@ -876,16 +970,17 @@ local gsub do
     end
   end
 
-  local function select_handler(ncaps, repl)
+  local function select_handler (ncaps, repl)
     t = type(repl)
     if t == "string" then
       if repl:find("%%[%d%%]") then
-        return pattern_handler, producers[repl]
+        return short_pattern_handler, short_pattern_handler
+        -- return short_pattern_handler, long_pattern_cache[repl]
       else
         return string_handler, string_handler
       end
     elseif t == "table" then
-      return table_handler, ncaps == 0 and producers[0] or producers[1]
+      return table_handler, producers[1]
     elseif t == "function" then
       return function_handler, producers[ncaps]
     else
@@ -893,27 +988,29 @@ local gsub do
     end
   end
 
-  function gsub(subj, pat, repl)
-    local c = gcodecache[pat]
+  function gsub (subj, pat, repl)
+    local c = gsubcodecache[pat]
     local matcher = c[M.CODE]
-    local handler, producer = select_handler(c[M.NCAPS], repl)
+    local handler, helper = select_handler(c[M.NCAPS], repl)
     local caps = c[M.CAPS]
-    matcher(subj, pat, 1, true, false)
+    local ncaps = c[M.NCAPS]
+    local success = matcher(subj, pat, 1, true, false)
 
-    if caps[0] == 0 then return nil end
-
-    local buf = Buffer()
+    if not success then return subj, 0 end
+    local count = 0
+    local buf = buffer()
     local subjptr = constchar(subj)
     local last_e = 0
-    while caps[0] ~= 0 do
+    while success do
+      count = count + 1
       mergebytes(buf, subjptr + last_e, caps[0] - last_e - 1)
       last_e = caps[1]
-      handler(subj, caps, producer, buf, repl)
+      handler(subj, caps, ncaps, helper, buf, repl)
       -- [[DBG]] print("Loop; i, e:", i,e)
-      matcher(subj, pat, caps[1] + 1, true, false)
+      success = matcher(subj, pat, caps[1] + 1, true, false)
     end
     mergebytes(buf, subjptr + last_e, #subj - last_e)
-    return ffi_string(buf.a, buf.i)
+    return ffi_string(buf.a, buf.i), count
   end
 
 end
