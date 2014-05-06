@@ -102,7 +102,7 @@ local templates = {}
 -- charsets, caps and qstn are the FFI pointers to the corresponding resources.
 templates.head = {[=[
 local bittest, charsetsS, caps, constchar, expose = ...
-return function(subj, _, i, g_, match)
+return function(subj, _, i)
   local charsets = charsetsS.ary
   local len = #subj
   local i0 = i - 1
@@ -257,19 +257,11 @@ local function hash_find (s, p, i) --
   return nil
 end
 
-local function simplewrp(s, p, i, _g, match)
-  i = i or 1
-  if not (_g or match) then return hash_find(s, p, i) end
+local function hash_match(s, p, i)
   local st, e = hash_find(s, p, i)
   if not st then return nil end
-  if _g then
-    return st, e, nil
-  else
-    return s_sub(s, st, e)
-  end
+  return s_sub(s, st, e)
 end
-local simplekey = {"simple"}
-local function simple(pat) return {simplewrp, simplekey, 0} end
 
 local specials = {} for _, c in ipairs{"^", "$", "*", "+", "?", ".", "(", "[", "%", "-"} do
   specials[c:byte()] = true
@@ -304,22 +296,24 @@ local --[[function]] compile
 --- The caches for the compiled pattern matchers.
 local findcodecache
 
+local simplefind = {hash_find, {"simple find"}, 0}
 findcodecache = setmetatable({}, {
   __mode="k",
   __index=function(codecache, pat)
 
-    local code = normal(pat) and simple(pat) or compile(pat, "find")
+    local code = normal(pat) and simplefind or compile(pat, "find")
     rawset(findcodecache, pat, code)
     return code
   end
 })
 
+local simplematch = {hash_match, {"simple match"}, 0}
 local matchcodecache
 matchcodecache = setmetatable({}, {
   __mode="k",
   __index=function(codecache, pat)
 
-    local code = normal(pat) and simple(pat) or compile(pat, "match")
+    local code = normal(pat) and simplematch or compile(pat, "match")
     rawset(matchcodecache, pat, code)
     return code
   end
@@ -730,7 +724,7 @@ local function find(subj, pat, i, plain)
     pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, false)
   )
   --[=[]==]
-  return findcodecache[pat][M.CODE](subj, pat, checki(i, subj), false, false)
+  return findcodecache[pat][M.CODE](subj, pat, i)
   --]=]
 end
 
@@ -742,7 +736,7 @@ local function match(subj, pat, i, raw)
     pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, true)
   )
   --[=[]]
-  return matchcodecache[pat][M.CODE](subj, pat, checki(i, subj), false, true)
+  return matchcodecache[pat][M.CODE](subj, pat, checki(i, subj))
   --]=]
 end
 
@@ -765,7 +759,7 @@ local gmatch do
   }]] local GM = new"struct GM"
 
   local function gmatch_iter(state)
-    local success = state[GM.CODE](state[GM.SUBJ], state[GM.PAT], state[GM.INDEX], true, false)
+    local success = state[GM.CODE](state[GM.SUBJ], state[GM.PAT], state[GM.INDEX])
     local caps = state[GM.CAPS]
     if success then
       state[GM.INDEX] = caps[1] + 1
@@ -843,8 +837,8 @@ local gsub do
     acc.a[acc.i] = byte
   end
 
-  local function table_handler (subj, caps, producer, buf, tbl)
-    local res = tbl[producer(subj, caps)]
+  local function table_handler (subj, caps, ncaps, producer, buf, tbl)
+    local res = tbl[producer(caps, subj)]
     if not res then
       local i, e = caps[0], caps [1]
       mergebytes(buf, constchar(subj) + i - 1, e - i + 1)
@@ -854,7 +848,7 @@ local gsub do
         res = tostring(res)
         mergestr(buf, res)
       else
-        error("invalid replacement value (a "..t..")")
+        error("invalid replacement type (a "..t..")")
       end
     end
   end
@@ -955,17 +949,17 @@ local gsub do
   end
 
   local function function_handler (subj, caps, ncaps, producer, buf, fun)
-    local res = fun(producer(caps))
+    local res = fun(producer(caps, subj))
     if not res then
       local i, e = caps[0], caps [1]
-      mergebytes(acc, subj + i, e - i + 1)
+      mergebytes(buf, constchar(subj) + i - 1, e - i + 1)
     else
       local t = type(res)
       if t == "string" or t == "number" then
         res = tostring(res)
         mergestr(buf, res)
       else
-        error("invalid replacement value (a "..t..")")
+        error("invalid replacement type (a "..t..")")
       end
     end
   end
@@ -994,20 +988,20 @@ local gsub do
     local handler, helper = select_handler(c[M.NCAPS], repl)
     local caps = c[M.CAPS]
     local ncaps = c[M.NCAPS]
-    local success = matcher(subj, pat, 1, true, false)
+    local success = matcher(subj, pat, 1)
 
     if not success then return subj, 0 end
+
     local count = 0
     local buf = buffer()
     local subjptr = constchar(subj)
     local last_e = 0
     while success do
-      count = count + 1
       mergebytes(buf, subjptr + last_e, caps[0] - last_e - 1)
       last_e = caps[1]
-      handler(subj, caps, ncaps, helper, buf, repl)
-      -- [[DBG]] print("Loop; i, e:", i,e)
-      success = matcher(subj, pat, caps[1] + 1, true, false)
+      local replaced = handler(subj, caps, ncaps, helper, buf, repl)
+      count = count + 1
+      success = matcher(subj, pat, caps[1] + 1)
     end
     mergebytes(buf, subjptr + last_e, #subj - last_e)
     return ffi_string(buf.a, buf.i), count

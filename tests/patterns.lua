@@ -25,12 +25,25 @@ for _, locale in ipairs{
 end
 gmtry(allchars, "%z+")
 
--- --- .install() ---
-
 iter(10)
 
 
---- The tests ---
+---- The tests ----
+
+--- gsub ---
+
+try("gsub", "_d_d_", "d", "+")
+try("gsub", "_da_da_", "(d)a", "+")
+
+try("gsub", "_d_d_", "d", {})
+try("gsub", "_d_d_", "d", {d = 9})
+try("gsub", "_d_d_", "d", {d = "9"})
+
+try("gsub", "_d_d_", "d", function()end)
+try("gsub", "_do_d_", "(d)(.)", function(a,b) return b,a end)
+
+
+--- %0 ---
 
 assert(strung.find("\0", "\0"), "'\\0' pattern failed to match.")
 assert(strung.find("\0", "[\0]"), "'\\0' pattern failed to match in charset.")
