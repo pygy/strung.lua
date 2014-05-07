@@ -213,7 +213,7 @@ function rev (s)
   return strung.gsub(s, "(.)(.+)", function (c,s1) return rev(s1)..c end)
 end
 
--- local x = strung.rep('012345', 10)
+local x = string.rep('012345', 10)
 assert(rev(rev(x)) == x)
 
 
