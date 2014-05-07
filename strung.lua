@@ -968,7 +968,7 @@ local gsub do
   local function select_handler (ncaps, repl)
     t = type(repl)
     if t == "string" then
-      if repl:find("%%[%d%%]") then
+      if repl:find("%%") then
         return short_pattern_handler, short_pattern_handler
         -- return short_pattern_handler, long_pattern_cache[repl]
       else
@@ -983,7 +983,8 @@ local gsub do
     end
   end
 
-  function gsub (subj, pat, repl)
+  function gsub (subj, pat, repl, n)
+    n = n or -1
     local c = gsubcodecache[pat]
     local matcher = c[M.CODE]
     local handler, helper = select_handler(c[M.NCAPS], repl)
@@ -997,11 +998,12 @@ local gsub do
     local buf = buffer()
     local subjptr = constchar(subj)
     local last_e = 0
-    while success do
+    while success and n ~= 0 do
+      n = n - 1
+      count = count + 1
       mergebytes(buf, subjptr + last_e, caps[0] - last_e - 1)
       last_e = caps[1]
-      local replaced = handler(subj, caps, ncaps, helper, buf, repl)
-      count = count + 1
+      handler(subj, caps, ncaps, helper, buf, repl)
       success = matcher(subj, pat, caps[1] + 1)
     end
     mergebytes(buf, subjptr + last_e, #subj - last_e)
