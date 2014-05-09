@@ -8,26 +8,36 @@ try("find", "fof", "f", -3)
 try("find", "fof", "f", -2)
 try("find", "fof", "f", -1)
 
+try("find", allchars, "a", 1, true)
+
+try("find", "fof", "f", -4, true)
+try("find", "fof", "f", -3, true)
+try("find", "fof", "f", -2, true)
+try("find", "fof", "f", -1, true)
+
 try("match", "fof", "f", -4)
 try("match", "fof", "f", -3)
 try("match", "fof", "f", -2)
 try("match", "fof", "f", -1)
 
--- iter(0.0001)
--- try("find", ("aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaaaaaaabbb")
+iter(0.0001)
+try("find", ("Long 1 -- aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaaaaaaabbb")
+try("find", ("Long 2 -- aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaaaaaaaaaaaaaaaaaabbb")
+try("find", ("Long 3 -- aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "aaaaaaaabbb")
+try("find", ("Long 4 -- aaaaaaaaabaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb"):rep(10000), "c")
+iter(10)
 
--- s = {}
--- for i = 1, 610000 do
---     s[#s+1] = string.char(math.random(255))
--- end
--- s = table.concat(s)
--- collectgarbage()
--- try("find", s, "aaaaaaaaaaaaabbb")
+s = {}
+for i = 1, 10000 do
+    s[#s+1] = string.char(math.random(255))
+end
+s = table.concat(s)
+collectgarbage()
+try("find", s, "aaaaaaaaaaaaabbb")
 
 try("find", "aaaaabaaaaabaaaaaaaaabb", "aabb")
 try("find", "aaaaaaaaabbaaaaaaaabbaaaaaaaaaaaabbaaaaaaaaaaabbaaaaaaaaaaaabb", "aaaaaaaaaaaaabbb")
 
-iter(10)
 
 try("find", "baa", "aa")
 try("find", "ba", "a")

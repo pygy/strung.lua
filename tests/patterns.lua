@@ -18,12 +18,11 @@ for _, locale in ipairs{
     "C"
 } do
     -- print("LOCALE: ", strung.setlocale(locale))
-    for c in ("acdlpsuwx"):gmatch"." do
+    for c in ("acdlpsuwxz"):gmatch"." do
         gmtry(allchars, "%"..c.."+")
         gmtry(allchars, "%"..c:upper().."+")
     end
 end
-gmtry(allchars, "%z+")
 
 iter(10)
 

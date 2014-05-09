@@ -40,6 +40,9 @@ if bench then
             tstrung[i] = os.clock() - tic
         end
         a = s_gsub(a, "[%z\1-\31\127-\255\\\"]", ""):sub(1,60)
+        if type(d) == "table" or type(d) == "function" then
+            d = tostring(d)
+        end
         args = '"' .. table.concat({f, a, s, d or 1, g and "true" or nil, h}, '","') ..'"'
         table.sort(tstrung)
         table.sort(tstring)

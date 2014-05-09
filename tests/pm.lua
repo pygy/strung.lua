@@ -52,7 +52,7 @@ assert(f('a$a', '.%$') == 'a$')
 assert(f('a$a', '.$.') == 'a$a')
 assert(f('a$a', '$$') == nil)
 assert(f('a$b', 'a$') == nil)
--- assert(f('a$a', '$') == '')
+assert(f('a$a', '$') == '')
 assert(f('', 'b*') == '')
 assert(f('aaa', 'bb*') == nil)
 assert(f('aaab', 'a-') == '')
@@ -89,16 +89,28 @@ local abc = string.char(range(0, 255));
 
 assert(string.len(abc) == 256)
 
-function strset (p)
+local function strset (p)
   local res = {s=''}
   strung.gsub(abc, p, function (c)
-    -- print(res.s)
+    -- print"===="
+    -- print("c:", c)
+    -- print("type(c):", type(c))
+    -- print("c:byte()",c:byte(1))
+    -- print("#c:", #c)
+    -- print("bef res.s:", res.s)
+    -- print("bef #res.s:", #res.s)
+    -- print("bef type(res.s):", type(res.s))
     res.s = res.s .. c
-    -- print(res.s)
+    -- print("aft res:",res.s)
+    -- print(type(res.s))
+    -- print(#res.s)
   end)
+  -- print(type(res.s))
+  -- print(#res.s)
   return res.s
 end;
 
+-- assert(string.len(strset('[\110-\120]')) == 11)
 -- assert(string.len(strset('[\200-\210]')) == 11)
 
 -- assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
@@ -114,8 +126,7 @@ assert(strset('.') == strset('[\1-\255%z]'))
 
 assert(strung.match("alo xyzK", "(%w+)K") == "xyz")
 assert(strung.match("254 K", "(%d*)K") == "")
---[[]]
--- assert(strung.match("alo ", "(%w*)$") == "")
+assert(strung.match("alo ", "(%w*)$") == "")
 assert(strung.match("alo ", "(%w+)$") == nil)
 assert(strung.find("(?lo)", "%(?") == 1)
 local a, b, c, d, e = strung.match("?lo alo", "^(((.).).* (%w*))$")
@@ -139,8 +150,8 @@ t = "ab? d"
 -- assert(strung.gsub("abc", "%w", "%1%0") == "aabbcc")
 -- assert(strung.gsub("abc", "%w+", "%0%1") == "abcabc")
 -- assert(strung.gsub('???', '$', '\0??') == '???\0??')
--- assert(strung.gsub('', '^', 'r') == 'r')
--- assert(strung.gsub('', '$', 'r') == 'r')
+assert(strung.gsub('', '^', 'r') == 'r')
+assert(strung.gsub('', '$', 'r') == 'r')
 -- print('+')
 
 assert(strung.gsub("um (dois) tres (quatro)", "(%(%w+%))", string.upper) ==
@@ -179,7 +190,7 @@ end
 
 assert(isbalanced("(9 ((8))(\0) 7) \0\0 a b ()(c)() a"))
 assert(not isbalanced("(9 ((8) 7) a b (\0 c) a"))
--- assert(strung.gsub("alo 'oi' alo", "%b''", '"') == 'alo " alo')
+assert(strung.gsub("alo 'oi' alo", "%b''", '"') == 'alo " alo')
 
 
 local t = {"apple", "orange", "lime"; n=0}
@@ -199,8 +210,8 @@ assert(not pcall(strung.gsub, "alo", "(.", print))
 assert(not pcall(strung.gsub, "alo", ".)", print))
 assert(not pcall(strung.gsub, "alo", "(.", {}))
 -- assert(not pcall(strung.gsub, "alo", "(.)", "%2"))
--- assert(not pcall(strung.gsub, "alo", "(%1)", "a"))
--- assert(not pcall(strung.gsub, "alo", "(%0)", "a"))
+assert(not pcall(strung.gsub, "alo", "(%1)", "a"))
+assert(not pcall(strung.gsub, "alo", "(%0)", "a"))
 
 -- big strings
 local a = string.rep('a', 300000)
@@ -217,7 +228,7 @@ local x = string.rep('012345', 10)
 assert(rev(rev(x)) == x)
 
 
--- -- gsub with tables
+-- gsub with tables
 assert(strung.gsub("alo alo", ".", {}) == "alo alo")
 assert(strung.gsub("alo alo", "(.)", {a="AA", l=""}) == "AAo AAo")
 assert(strung.gsub("alo alo", "(.).", {a="AA", l="K"}) == "AAo AAo")
@@ -232,12 +243,10 @@ assert(strung.gsub("a alo b hi", "%w%w+", t) == "a ALO b HI")
 -- tests for gmatch
 assert(strung.gfind == strung.gmatch)
 local a = 0
---[[]]
--- for i in strung.gmatch('abcde', '()') do 
---     print(i)
---     assert(i == a+1); a=i
--- end
--- assert(a==6)
+for i in strung.gmatch('abcde', '()') do 
+    assert(i == a+1); a=i
+end
+assert(a==6)
 
 t = {n=0}
 for w in strung.gmatch("first second word", "%w+") do
@@ -264,23 +273,21 @@ assert(a == 3)
 
 assert(strung.gsub("aaa aa a aaa a", "%f[%w]a", "x") == "xaa xa x xaa x")
 assert(strung.gsub("[[]] [][] [[[[", "%f[[].", "x") == "x[]] x]x] x[[[")
--- assert(strung.gsub("01abc45de3", "%f[%d]", ".") == ".01abc.45de.3")
+assert(strung.gsub("01abc45de3", "%f[%d]", ".") == ".01abc.45de.3")
 assert(strung.gsub("01abc45 de3x", "%f[%D]%w", ".") == "01.bc45 de3.")
 assert(strung.gsub("function", "%f[\1-\255]%w", ".") == ".unction")
--- assert(strung.gsub("function", "%f[^\1-\255]", ".") == "function.")
+assert(strung.gsub("function", "%f[^\1-\255]", ".") == "function.")
 
 local i, e = strung.find(" alo aalo allo", "%f[%S].-%f[%s].-%f[%S]")
 assert(i == 2 and e == 5)
 local k = strung.match(" alo aalo allo", "%f[%S](.-%f[%s].-%f[%S])")
 assert(k == 'alo ')
 
---[[]]
--- local a = {1, 5, 9, 14, 17,}
--- for k in strung.gmatch("alo alo th02 is 1hat", "()%f[%w%d]") do
---   print(k, type(k))
---   assert(table.remove(a, 1) == k)
--- end
--- assert(table.getn(a) == 0)
+local a = {1, 5, 9, 14, 17,}
+for k in strung.gmatch("alo alo th02 is 1hat", "()%f[%w%d]") do
+  assert(table.remove(a, 1) == k)
+end
+assert(table.getn(a) == 0)
 
 
 print('OK')
