@@ -1,12 +1,19 @@
--- strung.lua, a rewrite of the Lua string patterns in Lua + FFI, for LuaJIT
--- Copyright (C) 2013 Pierre-Yves Gérardy
+-------------------------------------------------------------------------------
+-- strung.lua -----------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- A rewrite of the Lua string patterns in Lua + FFI, for LuaJIT
+-- Copyright (C) 2013 - 2014 Pierre-Yves Gérardy
 -- MIT licensed (see the LICENSE file for the detais).
---
+
 -- strung compiles patterns to Lua functions, asssociated with an FFI array
 -- holding bit sets, for the character sets (`[...]`) and classes (`%x`), and
 -- slots for the capture bounds. This array is allocated once at pattern
 -- compile time, and reused for each matching attempt, minimizing memory
 -- pressure.
+
+-------------------------------------------------------------------------------
+--- localize globals ---
 
 local assert, error, getmetatable, ipairs, loadstring, pairs, print
     , rawset, require, setmetatable, tonumber, tostring, type, pcall
@@ -15,14 +22,18 @@ local assert, error, getmetatable, ipairs, loadstring, pairs, print
 
 --[[DBG]] local unpack = unpack
 
-local _u, expose, noglobals
+-- used only for development. strung works fine in the absence of util.lua
+local expose do 
+  pcall(function() 
+    local u, noglobals = require"util"
+    expose, noglobals = u.expose, u.noglobals
+  end)
+  -- throw an error when accessing a global.
+  ;(noglobals or type)""
+end
 
-pcall(function() -- used only for development.
-  _u = require"util"
-  expose, noglobals = _u.expose, _u.noglobals
-end)
-
-;(noglobals or type)("") -------------------------------------------------------------
+-------------------------------------------------------------------------------
+--- localize library functions ---
 
 local m_max = require"math".max
 
@@ -30,35 +41,38 @@ local o_setlocale = require"os".setlocale
 
 local s, t = require"string", require"table"
 
-local s_byte, s_char, s_find, s_gmatch, s_gsub, s_match, s_rep, s_sub
-    = s.byte, s.char, s.find, s.gmatch, s.gsub, s.match, s.rep, s.sub
+local s_byte, s_find, s_gmatch, s_gsub, s_len, s_rep, s_sub
+    = s.byte, s.find, s.gmatch, s.gsub, s.len, s.rep, s.sub
 
-local t_concat, t_insert, t_remove
-    = t.concat, t.insert, t.remove
+local t_concat, t_insert
+    = t.concat, t.insert
 
 local ffi = require"ffi"
-local C = ffi.C
 
-local     cdef,     copy,     metatype,     new, ffi_string,     typeof
-    = ffi.cdef, ffi.copy, ffi.metatype, ffi.new, ffi.string, ffi.typeof
+local     C,     cdef,     copy,     metatype,     new, ffi_string,     typeof
+    = ffi.C, ffi.cdef, ffi.copy, ffi.metatype, ffi.new, ffi.string, ffi.typeof
 
 local bit = require("bit")
 local band, bor, bxor = bit.band, bit.bor, bit.xor
 local lshift, rshift, rol = bit.lshift, bit.rshift, bit.rol
 
--- C types
-local u32ary = typeof"uint32_t[?]"
-local u32ptr = typeof"uint32_t *"
+-------------------------------------------------------------------------------
+--- C types ---
+
+local u32ary    = typeof"uint32_t[?]"
+local u32ptr    = typeof"uint32_t *"
 local constchar = typeof"const unsigned char *"
 
---[[DBG]] local ffimt = {__gc = function(self, ...)
+-- [[DBG]] local ffimt = {__gc = function(self, ...)
 -- [[DBG]]   print("GC", self, ...)
 -- [[DBG]]   expose(self)
---[[DBG]] end}
+-- [[DBG]] end}
+-- [[DBG]] local u32arys = metatype("struct {uint32_t ary[?];}", ffimt)
 
---[[DBG]] local u32arys = metatype("struct {uint32_t ary[?];}", ffimt)
 
--- bit sets, code released by Mike Pall in the public domain.
+-------------------------------------------------------------------------------
+--- bit sets
+--- written by Mike Pall released in the public domain.
 
 -- local bitary = ffi.typeof"int32_t[?]"
 -- local function bitnew(n)
@@ -73,7 +87,11 @@ local function bitset(b, i)
   local x = rshift(i, 5); b[x] = bor(b[x], lshift(1, i))
 end
 
--- pseudo-enum, just for the kicks. This might as well be a Lua table.
+-------------------------------------------------------------------------------
+--- Pseudo-enum ---
+
+-- This allows the compiler to treat the values as constants.
+
 cdef[[
 struct placeholder {
   static const int POS = 1;
@@ -96,7 +114,11 @@ local P = new"struct placeholder"
 
 local g_i, g_subj, g_ins, g_start, g_end
 
----------------------- TEMPLATES -----------------------
+
+-------------------------------------------------------------------------------
+--- Templates -----------------------------------------------------------------
+-------------------------------------------------------------------------------
+
 -- patterns are compiled to Lua by stitching these:
 
 local templates = {}
@@ -232,11 +254,16 @@ templates.close = {[[ -- )
 }
 
 
----- Simple pattern compiler ----
+-------------------------------------------------------------------------------
+---- Compiler -----------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+--- Simple pattern compiler ---
 
 local function hash_find (s, p, i) --
   if p == "" then return i, i - 1 end
-  local lp, ls = #p, #s
+  local lp, ls = s_len(p), s_len(s)
   if ls < lp then return nil end
   if p == s then return i, i + lp - 1 end
   local chars = constchar(s) - 1
@@ -284,16 +311,16 @@ end
 --   return true
 -- end
 
+local simplefind = {hash_find, {"simple find"}, 0}
 
 
----- Main pattern compiler ---
+-------------------------------------------------------------------------------
+--- Main pattern compiler helpers ---
 
-local --[[function]] compile
+local --[[function]] compile -- forward declaration
 
 --- The caches for the compiled pattern matchers.
 local findcodecache
-
-local simplefind = {hash_find, {"simple find"}, 0}
 findcodecache = setmetatable({}, {
   __mode="k",
   __index=function(codecache, pat)
@@ -361,7 +388,7 @@ local function push (tpl, data, buf, backbuf, ind)
   end end
 end
 
--- Character classes...
+--- Character classes...
 cdef[[
   int isalpha (int c);
   int iscntrl (int c);
@@ -374,15 +401,12 @@ cdef[[
   int isxdigit (int c);
 ]]
 
-
 local ccref = {
     a = "isalpha", c = "iscntrl", d = "isdigit",
     l = "islower", p = "ispunct", s = "isspace",
     u = "isupper", w = "isalnum", x = "isxdigit"
 }
-local allchars = {}; for i = 0, 255 do
-    allchars[i] = s_char(i)
-end
+
 local charclass = setmetatable({}, {__index = function(self, c)
   local func = ccref[c:lower()]
   if not func then return nil end
@@ -399,16 +423,19 @@ local charclass = setmetatable({}, {__index = function(self, c)
   return self[c]
 end})
 
--- %Z
+--- %Z
 do
   local Z = u32ary(8)
   for i = 1, 255 do bitset(Z, i) end
   charclass.Z = Z
 end
+
+--- build keys for the character class cache.
 local function key (cs)
   return t_concat({cs[0], cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7]}, ":")
 end
 
+--- character class builder
 local function makecc(pat, i, sets)
   local c = pat:sub(i , i)
   local class = charclass[c]
@@ -420,6 +447,7 @@ local function makecc(pat, i, sets)
   return "", (sets[k] - 1) * 256
 end
 
+--- Character set builder
 local hat = ('^'):byte()
 local function makecs(pat, i, sets)
   local inv = s_byte(pat,i) == hat
@@ -460,7 +488,8 @@ local function makecs(pat, i, sets)
   return inv, (sets[k] - 1) * 256, cl
 end
 
-cdef[[const char * strchr ( const char * str, int character );]]
+-------------------------------------------------------------------------------
+--- Main pattern compiler ---
 
 local suffixes = {
   ["*"] = true,
@@ -596,7 +625,6 @@ struct M {
   static const int CAPS = 4;
 }]] local M = new"struct M" -- fields of the "_M_atchers" table.
 
-
 function compile (pat, mode) -- local, declared above
   local anchored = (pat:sub(1,1) == "^")
   local caps, sets = {open = 0, type={}}, {}
@@ -672,7 +700,6 @@ function compile (pat, mode) -- local, declared above
 
   -- load the source
   local source = t_concat(buf)
-  -- [[DBG]] print("Compile; mode, ncaps, source", mode, ncaps, "\n"..source)
   local loader, err = loadstring(source)
   if not loader then error(source.."\nERROR:"..err) end
   local code = loader(bittest, charsets, capsptr, constchar, expose)
@@ -681,7 +708,12 @@ function compile (pat, mode) -- local, declared above
 end
 
 
----- API ----
+-------------------------------------------------------------------------------
+---- API ----------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+--- Helpers
 
 local function checki(i, subj)
   if not i then return 1 end
@@ -715,7 +747,8 @@ producers[0] = function(caps, subj)
   return subj:sub(caps[0], caps[1])
 end
 
-
+-------------------------------------------------------------------------------
+--- find
 
 local function find(subj, pat, i, plain)
   if plain then
@@ -736,6 +769,9 @@ local function find(subj, pat, i, plain)
   --]=]
 end
 
+-------------------------------------------------------------------------------
+--- match
+
 local function match(subj, pat, i, raw)
   --[[
   return _wrp(
@@ -749,11 +785,8 @@ local function match(subj, pat, i, raw)
 end
 
 
--- gmatch paraphernalia --
-
---- lazily build a table of functions that produce n captures at a given offset.
---- the offset * n combo is encoded as a single number by lshifting the offset
---- by 8 then adding it to n.
+-------------------------------------------------------------------------------
+--- gmatch
 
 local gmatch do
   cdef[[
@@ -790,6 +823,10 @@ local gmatch do
     return gmatch_iter, state
   end
 end
+
+
+-------------------------------------------------------------------------------
+--- gsub
 
 local gsub do
   local BUFF_INIT_SIZE = 16
@@ -1034,16 +1071,26 @@ local function _assert(test, pat, msg)
   end
 end
 
+
+-------------------------------------------------------------------------------
+--- Misc API functions
+
 -- reset the compiler cache to match the new locale.
 local function reset ()
-  codecache = setmetatable({}, getmetatable(codecache))
-  charclass = setmetatable({}, getmetatable(charclass))
+  findcodecache   = setmetatable({}, getmetatable(findcodecache))
+  matchcodecache  = setmetatable({}, getmetatable(matchcodecache))
+  gmatchcodecache = setmetatable({}, getmetatable(gmatchcodecache))
+  gsubcodecache   = setmetatable({}, getmetatable(gsubcodecache))
+  charclass       = setmetatable({}, getmetatable(charclass))
 end
+
+-- os.setlocale wrapper
 local function setlocale (loc, mode)
   reset()
   return o_setlocale(loc, mode)
 end
 
+-- show the source code of the compiled pattern matcher
 local function showpat(p)
   print(p,"\n---------")
   print(gsubcodecache[p][M.SOURCE])
