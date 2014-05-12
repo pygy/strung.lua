@@ -4,7 +4,7 @@ a rewrite of the Lua string pattern matching functions in Lua + FFI, for LuaJIT.
 
 `strung.find`, `strung.match`, and `strung.gmatch` are currently implmented according to the Lua manual.
 
-`strung.gsub` is yet to be written.
+`strung.gsub` is in the works.
 
 For the null byte in patterns, *strung* suports both `"%z"`, like Lua 5.1 and `"\0"`, like Lua 5.2. You can capture up to 200 values, if that's your thing.
 
@@ -40,25 +40,33 @@ S = "foo"
 S:match"[^f]*" --> "oo", using `strung.match` rather than `string.match`
 ```
 
+You can replace the methods selectively by passing method names as string to `install()`.
+
+```Lua
+strung.inatall("match", "gmatch")
+```
+
 ## Performance
 
-The standard string matching functions in LuaJIT, as of 2013-12-13, use the Lua API, and, as such, cause the compiler to abbort if they are in the way. Their *strung* counterpart can be compiled, and included in traces if they are in a hot path.
+As of 2034-05-09, LuaJIT 2.1 is able to compile calls to `string.find` when the string is not a pattern or when the [`plain` argument](http://www.lua.org/manual/5.1/manual.html#pdf-string.find) is set to `true`. For that use case, the native method is 500-1000 times faster than *strung*, at least for short strings. LuaJIT 2.0 doesn't compile `string.find`, and in that case, *strung* is competitive.
+
+The rest of the string matching functions use the Lua API, and, as such, cause the compiler to abbort if they are in the way. Their *strung* counterpart can be compiled, and included in traces if they are in a hot path.
 
 You have'll to benchmark your peculiar use case to determine if *strung* improves the global performance of your program. 
 
-In my microbenchmarks, depending on the kind of pattern, and on some luck regarding the JIT compiler heuristics [0], matching can be up to three times faster than the original. In other circumstances, for the same pattern, it can be up to three times slower. It is often on par.
+With LuaJIT 2.1, `strung` is consistently faster in my micro benchmarks (except `find()`ing plain strings, see above).
+
+With LuaJIT 2.0, depending on the kind of pattern, and on some luck regarding the JIT compiler heuristics [0], matching can be up to three times faster than the original. In other circumstances, for the same pattern, it can be up to three times slower. It is often on par.
 
 `/!\`: *strung* translates patterns to Lua functions, and caches the result. As a consequence, if you generate a lot of patterns dynamically, and seldom use them, *strung* will be much, much slower than the original. On the other hand, once a pattern has been compiled, matching only depends on the target string, whereas the reference functions have to dispatch on both the pattern and the target string. This allows LuaJIT to compile the matchers optimally.
+
+Plain string search are not compiled
 
 ## Locales
 
 *strung* compiles character classes (`"%u"`) and character sets (`"[a-z]"`), and caches the result for each pattern the first time they match. These sets don't update if you change the locale after the fact. You must call `strung.reset()` in order to clear the caches for the locale change to take effect. `strung.setlocale()` is a drop in replacement for `os.setlocale()` that resets *strung*. If you `.install()` the library, `os.setlocale()` will be replaced automatically.
 
 ## Undefined behavior
-
-### The Frontier Pattern (`%f[...]`)
-
-Officially supported since Lua 5.2, but both Lua 5.1 and LuaJIT handle it, and so does Strung.
 
 ### Bad patterns
 
@@ -67,7 +75,7 @@ Officially supported since Lua 5.2, but both Lua 5.1 and LuaJIT handle it, and s
 For example:
 
 ```Lua
-string.find("ab", "^b(") --> nil
+string.find("ab", "^b(") --> nil, the parenthese is never reached.
 string.find("ba", "^b(") --> error: unfinished capture
 ```
 
@@ -88,7 +96,6 @@ Specifically with *strung*:
 
 * `strung.gsub`
 * Boyer Moore for the simple string search?
-* Document ? limitation (and remove one local if possible).
 
 ## License
 
@@ -104,7 +111,7 @@ Test:   gmatch  abcdabcdabcd    ((a)(b)c)()(d)
 strung/string:  1.1065842049995
 ```
 
-If you bencmarked `string.find` before `gmatch`, with the same pattern, the result was completely different.
+If you benchmarked `string.find` before `gmatch`, with the same pattern, the result was completely different.
 
 ```
 -_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
