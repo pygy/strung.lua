@@ -1095,16 +1095,58 @@ local function showpat(p)
   print(p,"\n---------")
   print(gsubcodecache[p][M.SOURCE])
 end
+
+
+-------------------------------------------------------------------------------
+--- Monkey patching and export table
+
+local strung, install, uninstall do
+  local os, string = require"os", require"string"
+  local installable = {"find", "match", "gmatch", "gfind"} --, "gsub",
+
+  local instset = {}
+  for _, func in ipairs(installable) do
+    instset[func] = string[func]
+  end
+
+-- monkey patches the string library.
+  function install(...)
+    local m = {...}
+    if #m == 0 then
+      m = installable
+      os.setlocale = setlocale
+    end
+    for _, func in ipairs(m) do
+      if instset[func] then string[func] = strung[func] end
+      if func == "setlocale" then os.setlocale = setlocale end
+    end
+  end
+
+-- revert install
+  function uninstall(...)
+    local m = {...}
+    if #m == 0 then
+      m = installable
+      os.setlocale = o_setlocale
+    end
+    for _, func in ipairs(m) do
+      if instset[func] then string[func] = instset[func] end
+    end
+  end
+
+  strung = {
+    find = find,
+    match = match,
+    gfind = gmatch,
+    gmatch = gmatch,
+    gsub = gsub,
+    reset = reset,
+    setlocale = setlocale,
+    assert = _assert,
+    showpat = showpat
+  }
+end
+
 -------------------------------------------------------------------------------
 
-return {
-  find = find,
-  match = match,
-  gfind = gmatch,
-  gmatch = gmatch,
-  gsub = gsub,
-  reset = reset,
-  setlocale = setlocale,
-  assert = _assert,
-  showpat = showpat
-}
+return strung
