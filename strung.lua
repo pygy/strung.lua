@@ -23,14 +23,16 @@ local assert, error, getmetatable, ipairs, loadstring, pairs, print
 --[[DBG]] local unpack = unpack
 
 -- used only for development. strung works fine in the absence of util.lua
-local expose do 
-  pcall(function() 
+local expose, writelock do
+  pcall(function()
     local u, noglobals = require"util"
-    expose, noglobals = u.expose, u.noglobals
+    expose, noglobals, writelock = u.expose, u.noglobals, u.writelock
   end)
   -- throw an error when accessing a global.
   ;(noglobals or type)""
 end
+
+writelock = writelock or function(t) return t end
 
 -------------------------------------------------------------------------------
 --- localize library functions ---
@@ -125,9 +127,9 @@ local templates = {}
 
 -- charsets, caps and qstn are the FFI pointers to the corresponding resources.
 templates.head = {[=[
-local bittest, charsetsS, caps, constchar, expose = ...
+local bittest, charsets, caps, constchar, expose = ...
 return function(subj, _, i)
-  local charsets = charsetsS.ary
+  local charsets = charsets
   local len = #subj
   local i0 = i - 1
   local chars = constchar(subj) - 1 -- substract one to keep the 1-based index
@@ -204,7 +206,6 @@ templates.char = {[[(i <= len) and chars[i] == ]], P.VAL}
 templates.any = {[[i <= len]]}
 templates.set = {[[(i <= len) and ]], P.INV, [[ bittest(charsets, ]], P.SET, [=[ + chars[i])]=]}
 
-
 templates.ballanced = {[[ -- %b
   if chars[i] ~= ]], P.OPEN, [[ then
     i = 0; goto done --break
@@ -261,7 +262,7 @@ templates.close = {[[ -- )
 -------------------------------------------------------------------------------
 --- Simple pattern compiler ---
 
-local function hash_find (s, p, i) --
+local function hash_find (s, p, i)
   if p == "" then return i, i - 1 end
   local lp, ls = s_len(p), s_len(s)
   if ls < lp then return nil end
@@ -317,13 +318,13 @@ local simplefind = {hash_find, {"simple find"}, 0}
 -------------------------------------------------------------------------------
 --- Main pattern compiler helpers ---
 
-local --[[function]] compile -- forward declaration
+local --[[function]] compile --(pattern, mode) forward declaration
 
 --- The caches for the compiled pattern matchers.
 local findcodecache
 findcodecache = setmetatable({}, {
-  __mode="k",
-  __index=function(codecache, pat)
+  __mode = "k",
+  __index = function(codecache, pat)
 
     local code = normal(pat) and simplefind or compile(pat, "find")
     rawset(findcodecache, pat, code)
@@ -334,8 +335,8 @@ findcodecache = setmetatable({}, {
 local simplematch = {hash_match, {"simple match"}, 0}
 local matchcodecache
 matchcodecache = setmetatable({}, {
-  __mode="k",
-  __index=function(codecache, pat)
+  __mode = "k",
+  __index = function(codecache, pat)
 
     local code = normal(pat) and simplematch or compile(pat, "match")
     rawset(matchcodecache, pat, code)
@@ -345,8 +346,8 @@ matchcodecache = setmetatable({}, {
 
 local gmatchcodecache
 gmatchcodecache = setmetatable({}, {
-  __mode="k",
-  __index=function(codecache, pat)
+  __mode = "k",
+  __index = function(codecache, pat)
 
     local code = --[[normal(pat) and simple(pat) or]] compile(pat, "gmatch")
     rawset(gmatchcodecache, pat, code)
@@ -356,8 +357,8 @@ gmatchcodecache = setmetatable({}, {
 
 local gsubcodecache
 gsubcodecache = setmetatable({}, {
-  __mode="k",
-  __index=function(codecache, pat)
+  __mode = "k",
+  __index = function(codecache, pat)
 
     local code = --[[normal(pat) and simple(pat) or]] compile(pat, "gsub")
     rawset(gsubcodecache, pat, code)
@@ -390,16 +391,9 @@ end
 
 --- Character classes...
 cdef[[
-  int isalpha (int c);
-  int iscntrl (int c);
-  int isdigit (int c);
-  int islower (int c);
-  int ispunct (int c);
-  int isspace (int c);
-  int isupper (int c);
-  int isalnum (int c);
-  int isxdigit (int c);
-]]
+  int isalpha (int c); int iscntrl (int c); int isdigit (int c);
+  int islower (int c); int ispunct (int c); int isspace (int c);
+  int isupper (int c); int isalnum (int c); int isxdigit (int c);]]
 
 local ccref = {
     a = "isalpha", c = "iscntrl", d = "isdigit",
@@ -412,6 +406,8 @@ local charclass = setmetatable({}, {__index = function(self, c)
   if not func then return nil end
   local cc0, cc1 = u32ary(8), u32ary(8)
   for i = 0, 255 do
+    -- This is slow, but only used once per
+    -- (pair of charachter class) x (program run).
     if C[func](i) ~= 0 then
       bitset(cc0, i)
     else
@@ -430,7 +426,7 @@ do
   charclass.Z = Z
 end
 
---- build keys for the character class cache.
+--- build keys for the character class cache (used at pattern compilation time)
 local function key (cs)
   return t_concat({cs[0], cs[1], cs[2], cs[3], cs[4], cs[5], cs[6], cs[7]}, ":")
 end
@@ -590,7 +586,7 @@ local function body(pat, i, caps, sets, data, buf, backbuf)
         templates.char[P.VAL] = c:byte()
         data[P.TEST] = t_concat(templates.char)
         i, ind = suffix(i + 1, ind, len, pat, data, buf, backbuf)
-      end
+      end -- /"%"
     elseif c == '$' and i == #pat then
       push(templates.dollar, data, buf,backbuf, ind)
     else
@@ -606,12 +602,12 @@ end
 --- Create the uint32_t array that holds the character sets and capture bounds.
 local function pack (sets, ncaps)
   local nsets = #sets
-  local len = nsets*8 + ncaps*2
-  local charsets = u32arys(len + 2) -- add two slots for the bounds of the match.
-  local capsptr= u32ptr(charsets.ary) + len
+  local len = nsets * 8 + ncaps * 2
+  local charsets = u32ary(len + 2) -- add two slots for the bounds of the match.
+  local capsptr= u32ptr(charsets) + len
   for i = 1, nsets do
     for j = 0, 7 do
-      charsets.ary[(i - 1) * 8 + j] = sets[i][j]
+      charsets[(i - 1) * 8 + j] = sets[i][j]
     end
   end
   return charsets, capsptr
