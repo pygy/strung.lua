@@ -115,14 +115,14 @@ end;
 
 -- assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
 -- assert(strset('[a-z%d]') == strset('[%da-uu-z]'))
-assert(strset('[a-]') == "-a")
--- assert(strset('[^%W]') == strset('[%w]'))
+-- assert(strset('[a-]') == "-a")
+assert(strset('[^%W]') == strset('[%w]'))
 assert(strset('[]%%]') == '%]')
--- assert(strset('[a%-z]') == '-az')
+assert(strset('[a%-z]') == '-az')
 -- assert(strset('[%^%[%-a%]%-b]') == '-[]^ab')
--- assert(strset('%Z') == strset('[\1-\255]'))
+assert(strset('%Z') == strset('[\1-\255]'))
 assert(strset('.') == strset('[\1-\255%z]'))
--- print('+');
+print('+');
 
 assert(strung.match("alo xyzK", "(%w+)K") == "xyz")
 assert(strung.match("254 K", "(%d*)K") == "")
