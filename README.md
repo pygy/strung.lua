@@ -48,7 +48,7 @@ strung.inatall("match", "gmatch")
 
 ## Performance
 
-As of 2034-05-09, LuaJIT 2.1 is able to compile calls to `string.find` when the string is not a pattern or when the [`plain` argument](http://www.lua.org/manual/5.1/manual.html#pdf-string.find) is set to `true`. For that use case, the native method is 500-1000 times faster than *strung*, at least for short strings. LuaJIT 2.0 doesn't compile `string.find`, and in that case, *strung* is competitive.
+As of 2014-05-09, LuaJIT 2.1 is able to compile calls to `string.find` when the string is not a pattern or when the [`plain` argument](http://www.lua.org/manual/5.1/manual.html#pdf-string.find) is set to `true`. For that use case, the native method is 500-1000 times faster than *strung*, at least for short strings. LuaJIT 2.0 doesn't compile `string.find`, and in that case, *strung* is competitive.
 
 The rest of the string matching functions use the Lua API, and, as such, cause the compiler to abbort if they are in the way. Their *strung* counterpart can be compiled, and included in traces if they are in a hot path.
 
