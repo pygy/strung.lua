@@ -1119,12 +1119,13 @@ local strung, install, uninstall do
     instset[func] = string[func]
   end
 
+  installable[#installable + 1] = "setlocale"
+
 -- monkey patches the string library.
   function install(...)
     local m = {...}
     if #m == 0 then
       m = installable
-      os.setlocale = setlocale
     end
     for _, func in ipairs(m) do
       if instset[func] then string[func] = strung[func] end
@@ -1141,10 +1142,13 @@ local strung, install, uninstall do
     end
     for _, func in ipairs(m) do
       if instset[func] then string[func] = instset[func] end
+      if func == "setlocale" then os.setlocale = o_setlocale end
     end
   end
 
   strung = {
+    install = install,
+    uninstall = uninstall,
     find = find,
     match = match,
     gfind = gmatch,
