@@ -92,21 +92,8 @@ assert(string.len(abc) == 256)
 local function strset (p)
   local res = {s=''}
   strung.gsub(abc, p, function (c)
-    -- print"===="
-    -- print("c:", c)
-    -- print("type(c):", type(c))
-    -- print("c:byte()",c:byte(1))
-    -- print("#c:", #c)
-    -- print("bef res.s:", res.s)
-    -- print("bef #res.s:", #res.s)
-    -- print("bef type(res.s):", type(res.s))
     res.s = res.s .. c
-    -- print("aft res:",res.s)
-    -- print(type(res.s))
-    -- print(#res.s)
   end)
-  -- print(type(res.s))
-  -- print(#res.s)
   return res.s
 end;
 
