@@ -19,8 +19,10 @@ try("gsub", "_do_d_", "(d)(.)", function(a,b) return b,a end)
 
 -- the patterns used by f1() in pm.lua
 
+try('gsub', '123abc123', "abc", "IVX%1IVX")
+
 try("gsub", '(..*) %1', "%%([0-9])", function (s) return "%" .. (s+1) end)
-try("gsub", '(..*) %1', "^(^?)", "%1()", 1)
-try("gsub", '(..*) %1', "($?)$", "()%1", 1)
+-- try("gsub", '(..*) %1', "^(^?)", "%1()", 1)
+-- try("gsub", '(..*) %1', "($?)$", "()%1", 1)
 
 if not bench then print"ok" end
