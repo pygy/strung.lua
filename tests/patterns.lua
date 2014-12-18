@@ -141,6 +141,11 @@ try("find", "wwSS", "()(%u+)()")
 
 --- Character sets  ---
 
+
+try("find", "wwwww]wS", "[^%u%]]*")
+try("find", "%]%]", "[%%%]]+")
+try("find", "%]]]]%]", "[%%]]+")
+
 try("find", "wwwwwwS", "[^%u]*")
 try("find", "wwwwwwS", "[^%u]")
 try("find", "wwwwwwS", "(%l*)")

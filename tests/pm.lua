@@ -110,19 +110,19 @@ local function strset (p)
   return res.s
 end;
 
--- assert(string.len(strset('[\110-\120]')) == 11)
--- assert(string.len(strset('[\200-\210]')) == 11)
+assert(string.len(strset('[\110-\120]')) == 11)
+assert(string.len(strset('[\200-\210]')) == 11)
 
--- assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
--- assert(strset('[a-z%d]') == strset('[%da-uu-z]'))
+assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
+assert(strset('[a-z%d]') == strset('[%da-uu-z]'))
 assert(strset('[a-]') == "-a")
--- assert(strset('[^%W]') == strset('[%w]'))
+assert(strset('[^%W]') == strset('[%w]'))
 assert(strset('[]%%]') == '%]')
--- assert(strset('[a%-z]') == '-az')
--- assert(strset('[%^%[%-a%]%-b]') == '-[]^ab')
--- assert(strset('%Z') == strset('[\1-\255]'))
+assert(strset('[a%-z]') == '-az')
+assert(strset('[%^%[%-a%]%-b]') == '-[]^ab')
+assert(strset('%Z') == strset('[\1-\255]'))
 assert(strset('.') == strset('[\1-\255%z]'))
--- print('+');
+print('+');
 
 assert(strung.match("alo xyzK", "(%w+)K") == "xyz")
 assert(strung.match("254 K", "(%d*)K") == "")

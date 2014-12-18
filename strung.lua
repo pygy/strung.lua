@@ -24,8 +24,9 @@ local assert, error, getmetatable, ipairs, loadstring, pairs, print
 
 -- used only for development. strung works fine in the absence of util.lua
 local expose, writelock do
+  local noglobals
   pcall(function()
-    local u, noglobals = require"util"
+    local u = require"util"
     expose, noglobals, writelock = u.expose, u.noglobals, u.writelock
   end)
   -- throw an error when accessing a global.
@@ -446,15 +447,13 @@ local hat = ('^'):byte()
 local function makecs(pat, i, sets)
   local inv = s_byte(pat,i) == hat
   i = inv and i + 1 or i
-  local cl, last = i + 1, #pat
-  while ']' ~= s_sub(pat, cl, cl) do cl = cl + 1 if i > last then error"unfinished character class" end end
+  local last = #pat
   local cs = u32ary(8)
-  local c
-  while i < cl do
-    c = s_sub(pat,i, i)
+  local c = s_sub(pat,i, i)
+  while i <= last do
     if c == '%' then
       i = i + 1
-      if i == cl then error"invalid escape sequence" end
+      -- if i == cl then error"invalid escape sequence" end
       local cc = charclass[s_sub(pat, i, i)]
       if cc then
         for i = 0, 7 do
@@ -466,20 +465,27 @@ local function makecs(pat, i, sets)
         then bitset(cs, 0); i = i + 1; goto continue
       end -- else, skip the % and evaluate the character as itself.
     end
-    if i + 2 < cl and s_sub(pat, i + 1, i + 1) == '-' then
+
+
+    if s_sub(pat, i + 1, i + 1) == '-' and s_sub(pat, i+2, i+2) ~= ']' then
       for i = s_byte(pat, i), s_byte(pat, i+2) do bitset(cs, i) end
       i = i + 3
     else
       bitset(cs, s_byte(pat, i)); i = i + 1
     end
+
     ::continue::
+
+    c = s_sub(pat,i, i)
+    if c == ']' then break end
   end
+  if i > last then error"unfinished character class" end
   local k = key(cs)
   if not sets[k] then
     sets[#sets + 1] = cs
     sets[k]  = #sets
   end
-  return inv, (sets[k] - 1) * 256, cl
+  return inv, (sets[k] - 1) * 256, i
 end
 
 -------------------------------------------------------------------------------
