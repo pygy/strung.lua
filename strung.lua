@@ -32,8 +32,6 @@ local expose, writelock do
   ;(noglobals or type)""
 end
 
-writelock = writelock or function(t) return t end
-
 -------------------------------------------------------------------------------
 --- localize library functions ---
 
@@ -828,30 +826,40 @@ local gsub do
   local BUFF_INIT_SIZE = 16
   cdef"void* malloc (size_t size);"
   cdef"void free (void* ptr);"
+  local charsize = ffi.sizeof"char"
   local acache = setmetatable({},{__mode = "k"})
+
+  local function malloc(s)
+    local p = C.malloc(s)
+    if p == nil then
+      collectgarbage()
+      p = C.malloc(s)
+    end
+    if p == nil then error"out of memory, `ffi.C.malloc()` failed" end
+    return p
+  end
+
   local Buffer = metatype(
     --               size,       index,            array
     "struct{uint32_t s; uint32_t i; unsigned char* a;}",
     {__gc = function(self) C.free(self.a) end}
   )
-  local charsize = ffi.sizeof"char"
   local function buffer()
     local b = Buffer(
       BUFF_INIT_SIZE,
       0,
-      C.malloc(BUFF_INIT_SIZE * charsize)
+      malloc(BUFF_INIT_SIZE * charsize)
     )
     return b
   end
 
   local function reserve (buf, size)
     if size <= buf.s then return end
-    local a = buf.a
-    size = buf.s * 2
-    buf.a = C.malloc(size * charsize)
-    buf.s = size
-    copy(buf.a, a, buf.i)
-    C.free(a)
+    repeat buf.s = buf.s * 2 until size <= buf.s
+    local a = malloc(buf.s * charsize)
+    ffi.copy(a, buf.a, buf.i)
+    ffi.C.free(buf.a)
+    buf.a = a
   end
 
   local function mergebuf (acc, new)
