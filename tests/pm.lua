@@ -12,7 +12,7 @@ function f1(s, p)
   p = strung.gsub(p, "^(^?)", "%1()", 1)
   p = strung.gsub(p, "($?)$", "()%1", 1)
   local t = {strung.match(s, p)}
-  return strung.sub(s, t[1], t[#t] - 1)
+  return string.sub(s, t[1], t[#t] - 1)
 end
 
 a,b = strung.find('', '')    -- empty patterns are tricky
@@ -74,9 +74,9 @@ assert(f("0alo alo", "%x*") == "0a")
 assert(f("alo alo", "%C+") == "alo alo")
 print('+')
 
--- assert(f1('alo alx 123 b\0o b\0o', '(..*) %1') == "b\0o b\0o")
--- assert(f1('axz123= 4= 4 34', '(.+)=(.*)=%2 %1') == '3= 4= 4 3')
--- assert(f1('=======', '^(=*)=%1$') == '=======')
+assert(f1('alo alx 123 b\0o b\0o', '(..*) %1') == "b\0o b\0o")
+assert(f1('axz123= 4= 4 34', '(.+)=(.*)=%2 %1') == '3= 4= 4 3')
+assert(f1('=======', '^(=*)=%1$') == '=======')
 assert(strung.match('==========', '^([=]*)=%1$') == nil)
 
 local function range (i, j)
@@ -124,19 +124,19 @@ print('+')
 
 assert(strung.gsub('?lo ?lo', '?', 'x') == 'xlo xlo')
 assert(strung.gsub('alo ?lo  ', ' +$', '') == 'alo ?lo')  -- trim
--- assert(strung.gsub('  alo alo  ', '^%s*(.-)%s*$', '%1') == 'alo alo')  -- double trim
+assert(strung.gsub('  alo alo  ', '^%s*(.-)%s*$', '%1') == 'alo alo')  -- double trim
 assert(strung.gsub('alo  alo  \n 123\n ', '%s+', ' ') == 'alo alo 123 ')
 t = "ab? d"
--- a, b = strung.gsub(t, '(.)', '%1@')
--- assert('@'..a == strung.gsub(t, '', '@') and b == 5)
--- a, b = strung.gsub('ab?d', '(.)', '%0@', 2)
--- assert(a == 'a@b@?d' and b == 2)
+a, b = strung.gsub(t, '(.)', '%1@')
+assert('@'..a == strung.gsub(t, '', '@') and b == 5)
+a, b = strung.gsub('ab?d', '(.)', '%0@', 2)
+assert(a == 'a@b@?d' and b == 2)
 -- assert(strung.gsub('alo alo', '()[al]', '%1') == '12o 56o')
--- assert(strung.gsub("abc=xyz", "(%w*)(%p)(%w+)", "%3%2%1-%0") ==
---               "xyz=abc-abc=xyz")
--- assert(strung.gsub("abc", "%w", "%1%0") == "aabbcc")
--- assert(strung.gsub("abc", "%w+", "%0%1") == "abcabc")
--- assert(strung.gsub('???', '$', '\0??') == '???\0??')
+assert(strung.gsub("abc=xyz", "(%w*)(%p)(%w+)", "%3%2%1-%0") ==
+              "xyz=abc-abc=xyz")
+assert(strung.gsub("abc", "%w", "%1%0") == "aabbcc")
+assert(strung.gsub("abc", "%w+", "%0%1") == "abcabc")
+assert(strung.gsub('???', '$', '\0??') == '???\0??')
 assert(strung.gsub('', '^', 'r') == 'r')
 assert(strung.gsub('', '$', 'r') == 'r')
 -- print('+')
@@ -196,7 +196,7 @@ assert(t[1] == "first" and t[2] == "second" and t[3] == nil)
 assert(not pcall(strung.gsub, "alo", "(.", print))
 assert(not pcall(strung.gsub, "alo", ".)", print))
 assert(not pcall(strung.gsub, "alo", "(.", {}))
--- assert(not pcall(strung.gsub, "alo", "(.)", "%2"))
+assert(not pcall(strung.gsub, "alo", "(.)", "%2"))
 assert(not pcall(strung.gsub, "alo", "(%1)", "a"))
 assert(not pcall(strung.gsub, "alo", "(%0)", "a"))
 

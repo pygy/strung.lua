@@ -890,8 +890,8 @@ local gsub do
   local function mergeonebyte (acc, byte)
     -- [[DBG]] print("  mergeone: "..("").char(byte), "buf.i: ".. tostring(acc.i), "buf.s: ".. tostring(acc.s), "buf.a: "..ffi_string(acc.a, acc.i + 1))
     reserve(acc, acc.i + 1)
-    acc.i = acc.i + 1
     acc.a[acc.i] = byte
+    acc.i = acc.i + 1
     -- [[DBG]] print("    "..("").char(acc.a[acc.i]))
     -- [[DBG]] print("  /mergeon: "..("").char(byte), "buf.i: ".. tostring(acc.i), "buf.s: ".. tostring(acc.s), "buf.a: "..ffi_string(acc.a, acc.i + 1))
   end
