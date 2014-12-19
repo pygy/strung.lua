@@ -1107,7 +1107,8 @@ local strung, install, uninstall do
     reset = reset,
     setlocale = setlocale,
     assert = _assert,
-    showpat = showpat
+    showpat = showpat,
+    _VERSION = "1.0.0-rc1"
   }
 end
 
