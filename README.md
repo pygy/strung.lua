@@ -18,7 +18,7 @@ Like Lua 5.1, and unlike Lua 5.2 and LuaJIT 2.0+, `strung` character classes (`%
 
 ## Usage
 
-You can use `strung.lua` standalone, the dependencies are optional, and only useful for development.
+You can use the `strung.lua` file alone, the dependencies are optional, and only useful for development.
 
 ```Lua
 local strung = require"strung"
@@ -26,7 +26,7 @@ local strung = require"strung"
 strung.find("foobar", "b(%l*)") --> 4, 6, "ar"
 ```
 
-... etc. for `match` and `gmatch`
+... etc. for `match`, `gmatch` and `gsub`.
 
 Alternativley, you can `.install()` the library, and have it replace the original functions completely.
 
@@ -43,7 +43,7 @@ S:match"[^f]*" --> "oo", using `strung.match` rather than `string.match`
 You can replace the methods selectively by passing method names as string to `install()`.
 
 ```Lua
-strung.inatall("match", "gmatch")
+strung.install("match", "gmatch")
 ```
 
 ## Performance
@@ -103,7 +103,6 @@ Specifically with `strung`:
 
 ## TODO
 
-* `strung.gsub`
 * Boyer Moore for the simple string search?
 
 ## License
