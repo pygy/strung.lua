@@ -736,11 +736,6 @@ local function checki(i, subj)
   return i
 end
 
-local function _wrp (src, pat, success, ...)
-  if not success then error("-=-=-=-=-=-=-=-=-=-=-=-=-=-\n"..src.. "\n"..pat.. "\n".. (...)) end
-  return ...
-end
-
 local producers = setmetatable({}, {__index = function(self, n)
   local acc = {}
   for open = -2, -n * 2, -2 do
@@ -769,33 +764,14 @@ local function find(subj, pat, i, plain)
     return s_find(subj, pat, i, true)
   end
   i = checki(i, subj)
-  -- if plain then
-  --   return hash_find(subj, pat, i, true)
-  -- end
-  --[==[
-  return _wrp(
-    codecache[pat][M.SOURCE],
-    pat,
-    pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, false)
-  )
-  --[=[]==]
   return findcodecache[pat][M.CODE](subj, pat, i)
-  --]=]
 end
 
 -------------------------------------------------------------------------------
 --- match
 
 local function match(subj, pat, i, raw)
-  --[[
-  return _wrp(
-    codecache[pat][M.SOURCE],
-    pat,
-    pcall(codecache[pat][M.CODE], subj, pat, checki(i, subj), false, true)
-  )
-  --[=[]]
   return matchcodecache[pat][M.CODE](subj, pat, checki(i, subj))
-  --]=]
 end
 
 
