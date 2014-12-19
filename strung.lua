@@ -944,7 +944,7 @@ local gsub do
     mergestr(buf, str)
   end
 
-  local function short_pattern_handler (subj, caps, ncaps, _, buf, pat)
+  local function string_with_captures_handler (subj, caps, ncaps, _, buf, pat)
     local i, L = 1, #pat
     ncaps = m_max(1, ncaps) -- for simple matchers, %0 and %1 mean the same thing.
     subj = constchar(subj) - 1 -- subj is anchored in `gsub()`
@@ -978,7 +978,7 @@ local gsub do
     t = type(repl)
     if t == "string" then
       if repl:find("%%") then
-        return short_pattern_handler, short_pattern_handler
+        return string_with_captures_handler, string_with_captures_handler
       else
         return string_handler, string_handler
       end
@@ -995,7 +995,7 @@ local gsub do
     n = n or -1
     local c = gsubcodecache[pat]
     local matcher = c[M.CODE]
-    local handler, helper = select_handler(c[M.NCAPS], repl)
+    local handler, producer = select_handler(c[M.NCAPS], repl)
     local caps = c[M.CAPS]
     local ncaps = c[M.NCAPS]
     local success = matcher(subj, pat, 1)
@@ -1011,7 +1011,7 @@ local gsub do
       count = count + 1
       mergebytes(buf, subjptr + last_e, caps[0] - last_e - 1)
       last_e = caps[1]
-      handler(subj, caps, ncaps, helper, buf, repl)
+      handler(subj, caps, ncaps, producer, buf, repl)
       success = matcher(subj, pat, m_max(caps[0], caps[1]) + 1)
     end
     mergebytes(buf, subjptr + last_e, #subj - last_e)
