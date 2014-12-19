@@ -614,7 +614,8 @@ Character sets each take 8 solts, starting from the start of the array.
 Each capture uses two slots corresponding to its first ("open") and last ("close")
 character.
 
-Position captures are tagged by having the "open" bound set to 0.
+Position captures are tagged by having the "open" bound set to 0. The "close" slot
+holds the position.
 
 The zeroth capture is implicit, and corresponds to the whole match.
 
