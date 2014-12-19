@@ -131,7 +131,7 @@ a, b = strung.gsub(t, '(.)', '%1@')
 assert('@'..a == strung.gsub(t, '', '@') and b == 5)
 a, b = strung.gsub('ab?d', '(.)', '%0@', 2)
 assert(a == 'a@b@?d' and b == 2)
--- assert(strung.gsub('alo alo', '()[al]', '%1') == '12o 56o')
+assert(strung.gsub('alo alo', '()[al]', '%1') == '12o 56o')
 assert(strung.gsub("abc=xyz", "(%w*)(%p)(%w+)", "%3%2%1-%0") ==
               "xyz=abc-abc=xyz")
 assert(strung.gsub("abc", "%w", "%1%0") == "aabbcc")
@@ -139,7 +139,7 @@ assert(strung.gsub("abc", "%w+", "%0%1") == "abcabc")
 assert(strung.gsub('???', '$', '\0??') == '???\0??')
 assert(strung.gsub('', '^', 'r') == 'r')
 assert(strung.gsub('', '$', 'r') == 'r')
--- print('+')
+print('+')
 
 assert(strung.gsub("um (dois) tres (quatro)", "(%(%w+%))", string.upper) ==
             "um (DOIS) tres (QUATRO)")

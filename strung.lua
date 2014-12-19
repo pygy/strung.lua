@@ -230,8 +230,8 @@ templates.frontier = {[[ -- %f
   then i = 0; goto done end]]
 }
 templates.poscap = {[[ -- ()
-  caps[]], P.OPEN, [[] = i
-  caps[]], P.CLOSE, [[] = 4294967295
+  caps[]], P.OPEN, [[] = 0
+  caps[]], P.CLOSE, [[] = i
 ]]
 }
 templates.refcap = {[[ -- %n for n = 1, 9
@@ -604,6 +604,25 @@ local function body(pat, i, caps, sets, data, buf, backbuf)
 end
 
 --- Create the uint32_t array that holds the character sets and capture bounds.
+
+--[[
+
+Memory layout of the charset/capture bounds uint32_t array:
+
+Character sets each take 8 solts, starting from the start of the array.
+
+Each capture uses two slots corresponding to its first ("open") and last ("close")
+character.
+
+Position captures are tagged by having the "open" bound set to 0.
+
+The zeroth capture is implicit, and corresponds to the whole match.
+
+`capsptr[-n*2]` is the "open" bound of the nth capture.
+`capsptr[-n*2 + 1]` is the corresponding "close" bound.
+
+--]]
+
 local function pack (sets, ncaps)
   local nsets = #sets
   local len = nsets * 8 + ncaps * 2
@@ -684,7 +703,7 @@ function compile (pat, mode) -- local, declared above
     local rc = {}
     for i = 2, #caps, 2 do
       if caps.type[i/2] == "pos" then
-        rc[#rc + 1] = "caps[".. -i.. "]"
+        rc[#rc + 1] = "caps[".. -i + 1 .. "]"
       else
         rc[#rc + 1] = "subj:sub(caps[".. -i .."], caps[" .. -i + 1 .. "]) "
       end
@@ -732,7 +751,7 @@ local producers = setmetatable({}, {__index = function(self, n)
   for open = -2, -n * 2, -2 do
     local close = open + 1
     acc[#acc + 1] =
-      "c["..close.."] == 4294967295 and c["..open.."] or "..
+      "c["..open.."] == 0 and c["..close.."] or "..
         "subj:sub(c["..open.."], c["..close.."])"
   end
   local res = loadstring([=[ --
@@ -1015,8 +1034,12 @@ local gsub do
           n = n - 48
           if n > ncaps then error"invalid capture index" end
           local s = caps[-2*n]
-          local ll = caps[-2*n + 1] - s + 1
-          mergebytes(buf, subj + s, ll)
+          if s == 0 then
+            mergestr(buf, tostring(caps[-2*n + 1]))
+          else
+            local ll = caps[-2*n + 1] - s + 1
+            mergebytes(buf, subj + s, ll)
+          end
         else
           mergeonebyte(buf, n)
         end
