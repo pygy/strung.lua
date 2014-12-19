@@ -64,12 +64,6 @@ local u32ary    = typeof"uint32_t[?]"
 local u32ptr    = typeof"uint32_t *"
 local constchar = typeof"const unsigned char *"
 
--- [[DBG]] local ffimt = {__gc = function(self, ...)
--- [[DBG]]   print("GC", self, ...)
--- [[DBG]]   expose(self)
--- [[DBG]] end}
--- [[DBG]] local u32arys = metatype("struct {uint32_t ary[?];}", ffimt)
-
 
 -------------------------------------------------------------------------------
 --- bit sets
@@ -249,7 +243,7 @@ templates.open = {[[ -- (
 templates.close = {[[ -- )
   caps[]], P.CLOSE, [[] = i - 1]]
 }
-  templates.dollar = {[[ --
+templates.dollar = {[[ --
   if i ~= #subj + 1 then i = 0 end -- $]]
 }
 
@@ -908,12 +902,9 @@ local gsub do
   end
 
   local function mergeonebyte (acc, byte)
-    -- [[DBG]] print("  mergeone: "..("").char(byte), "buf.i: ".. tostring(acc.i), "buf.s: ".. tostring(acc.s), "buf.a: "..ffi_string(acc.a, acc.i + 1))
     reserve(acc, acc.i + 1)
     acc.a[acc.i] = byte
     acc.i = acc.i + 1
-    -- [[DBG]] print("    "..("").char(acc.a[acc.i]))
-    -- [[DBG]] print("  /mergeon: "..("").char(byte), "buf.i: ".. tostring(acc.i), "buf.s: ".. tostring(acc.s), "buf.a: "..ffi_string(acc.a, acc.i + 1))
   end
 
   -- handlers for each type of replacement
@@ -953,72 +944,6 @@ local gsub do
     mergestr(buf, str)
   end
 
-  -- local function prepare(repl, n, buf, i)
-  --   local i0 = i
-  --   local c = repl[i]
-  --   if c == 37 then -- "%"
-  --     i = i + 1
-  --     if i == n then return end -- skip a "%" in terminal position.
-  --     c = repl[i]
-  --     if not (48 <= c and c <= 57) then return prepare(repl, n, buf, i) end
-  --     i = i
-  --     mergeonebyte(buf, 0)
-  --     mergeonebyte(buf, c - 48)
-  --     return prepare(repl, n, buf, i + 1)
-  --   else
-  --     local bufi =  buf.i + 2
-  --     mergeonebyte(buf, 0)
-  --     while true do
-  --       mergeonebyte(buf, c)
-  --       i = i + 1
-  --       if buf.i - bufi > 255 then
-  --         buf[bufi] = 255
-  --         bufi = buf.i + 2
-  --       end
-  --       c = repl[i]
-  --       if c == 37 then -- "%"
-  --         i = i + 1
-  --         if i == n then
-  --           buf[bufi] = buf.i - bufi
-  --           return
-  --         end
-  --         if 48 <= c and c <= 57 then return prepare(repl, n, buf, i - 1) end
-  --       end
-  --       mergeonebyte(buf, c)
-  --       i = i + 1
-  --     end
-  --   end
-  -- end
-
-  -- local charary = typeof"unsigned char[?]"
-  -- local long_pattern_cache = setmetatable({}, {__index = function(self, repl)
-  --   local buf = buffer()
-  --   repl = constchar(repl)
-  --   prepare(repl, buf, 0)
-  --   return buf
-  -- end})
-
-  -- local function long_pattern_handler (subj, caps, ncaps, replacement, buf, pat)
-  --   local i, L, ary = 0, replacement.i, replacement.a
-  --   ncaps = m_max(1, ncaps) -- for simple matchers, %0 and %1 mean the same thing.
-  --   subj = constchar(subj) - 1 -- subj is anchored in `gsub()`
-  --   while i < L do
-  --     local l = ary[i]
-  --     i = i + 1
-  --     if l == 0 then
-  --       local n = ary[i]
-  --       if n > ncaps then error"invalid capture index" end
-  --       local s = caps[-2*n]
-  --       local ll = caps[-2*n + 1] - s
-  --       mergebytes(buf, subj + s, ll)
-  --       i = i + 1
-  --     else
-  --       mergebytes(buf, ary + i, l)
-  --       i = i + l
-  --     end
-  --   end
-  -- end
-
   local function short_pattern_handler (subj, caps, ncaps, _, buf, pat)
     local i, L = 1, #pat
     ncaps = m_max(1, ncaps) -- for simple matchers, %0 and %1 mean the same thing.
@@ -1026,12 +951,10 @@ local gsub do
     pat = constchar(pat) - 1 -- ditto
     while i <= L do
       local n = pat[i]
-      -- [[DBG]] print("char: "..("").char(n), "i: "..tostring(i), "buf.i: ".. tostring(buf.i), "buf.s: ".. tostring(buf.s), "buf.a: "..ffi_string(buf.a, buf.i))
       if n == 37 then -- "%" --> capture or escape sequence.
         i = i + 1
         n = pat[i]
         if 48 <= n and n <= 57 then -- "0" <= n <= "9"
-          -- [[DBG]] print("+ cap: "..("").char(n), "i: "..tostring(i), "buf.i: ".. tostring(buf.i), "buf.s: ".. tostring(buf.s), "buf.a: "..ffi_string(buf.a, buf.i))
           n = n - 48
           if n > ncaps then error"invalid capture index" end
           local s = caps[-2*n]
@@ -1047,8 +970,6 @@ local gsub do
       else
         mergeonebyte (buf, n)
       end
-      -- [[DBG]] print("char: "..("").char(n), "i: "..tostring(i), "buf.i: ".. tostring(buf.i), "buf.s: ".. tostring(buf.s), "buf.a: "..ffi_string(buf.a, buf.i))
-      -- [[DBG]] print"========================"
       i = i + 1
     end
   end
@@ -1058,7 +979,6 @@ local gsub do
     if t == "string" then
       if repl:find("%%") then
         return short_pattern_handler, short_pattern_handler
-        -- return short_pattern_handler, long_pattern_cache[repl]
       else
         return string_handler, string_handler
       end
