@@ -25,4 +25,8 @@ try("gsub", '(..*) %1', "%%([0-9])", function (s) return "%" .. (s+1) end)
 try("gsub", '(..*) %1', "^(^?)", "%1()", 1)
 try("gsub", '(..*) %1', "($?)$", "()%1", 1)
 
+-- see issue #7
+
+try("gsub", "os:d:/dropbox/goluwa/.userdata/caps/lua/libraries/extensions/globals.lua", "^(.-:)", "")
+
 if not bench then print"ok" end
