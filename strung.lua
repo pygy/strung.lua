@@ -637,6 +637,7 @@ struct M {
   static const int SOURCE = 2;
   static const int NCAPS = 3;
   static const int CAPS = 4;
+  static const int ANCHORED = 5;
 }]] local M = new"struct M" -- fields of the "_M_atchers" table.
 
 function compile (pat, mode) -- local, declared above
@@ -717,7 +718,7 @@ function compile (pat, mode) -- local, declared above
   local loader, err = loadstring(source)
   if not loader then error(source.."\nERROR:"..err) end
   local code = loader(bittest, charsets, capsptr, constchar, expose)
-  return {code,   source,   ncaps,   capsptr}
+  return {code,   source,   ncaps,   capsptr, anchored}
      -- m.CODE, m.SOURCE,   m.NCAPS, m.CAPS -- anchor the charset array? Seems to fix the segfault.
 end
 
@@ -971,13 +972,16 @@ local gsub do
     n = n or -1
     local c = gsubcodecache[pat]
     local matcher = c[M.CODE]
-    local handler, producer = select_handler(c[M.NCAPS], repl)
-    local caps = c[M.CAPS]
-    local ncaps = c[M.NCAPS]
     local success = matcher(subj, pat, 1)
 
     if not success then return subj, 0 end
 
+    local handler, producer = select_handler(c[M.NCAPS], repl)
+
+    if c[M.ANCHORED] then n = 1 end
+
+    local caps = c[M.CAPS]
+    local ncaps = c[M.NCAPS]
     local count = 0
     local buf = buffer()
     local subjptr = constchar(subj)
