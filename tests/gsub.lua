@@ -27,6 +27,7 @@ try("gsub", '(..*) %1', "($?)$", "()%1", 1)
 
 -- see issue #7
 
-try("gsub", "os:d:/dropbox/goluwa/.userdata/caps/lua/libraries/extensions/globals.lua", "^(.-:)", "")
+try("gsub", "os:d:/dropbox/goluwa/...", "^(.-:)", "")
+try("gsub", "os:d:/dropbox/goluwa/...", "^(.-:)", "",2)
 
 if not bench then print"ok" end
