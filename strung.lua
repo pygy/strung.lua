@@ -978,6 +978,7 @@ local gsub do
 
     local handler, producer = select_handler(c[M.NCAPS], repl)
 
+    -- Anchored patterns should not be matched more than once.
     if c[M.ANCHORED] then n = 1 end
 
     local caps = c[M.CAPS]
