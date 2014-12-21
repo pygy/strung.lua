@@ -1043,7 +1043,7 @@ end
 
 local strung, install, uninstall do
   local os, string = require"os", require"string"
-  local installable = {"find", "match", "gmatch", "gfind"} --, "gsub",
+  local installable = {"find", "match", "gmatch", "gfind", "gsub"}
 
   local instset = {}
   for _, func in ipairs(installable) do
