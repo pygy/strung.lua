@@ -195,16 +195,16 @@ templates['-'] = {[[ -- c-
 -- the current character (i1).
 templates["?"] = {[[ -- c?
   do
-    local i1, q = i, false
-    if ]], P.TEST, [[ then q = true; i = i + 1 end
+    local i1 = i
+    if ]], P.TEST, [[ then i = i + 1 else i1 = 0 end
     goto firsttime
     ::secondtime::
-    i = i1
+    i, i1 = i1, 0
     ::firsttime::
     do --]],
       P.NEXT, [[ --
     ::done:: end
-    if i == 0 and q then q = false; goto secondtime end
+    if i == 0 and i1 ~= 0 then goto secondtime end
   end]]
 }
 
