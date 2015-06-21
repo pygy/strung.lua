@@ -6,13 +6,13 @@ The 26 opcodes are encoded on the five least significant bits [4-0].
 
 ```
 0 = >15: bitwise:
-[3-2]: (0, 1, 2) = (any, char, set)
-    [1-0]: (0, 1, 2, 3) = (1, *, -, ?)
+[1-0]: (0, 1, 2) = (any, char, set)
+    [3-2]: (0, 1, 2, 3) = (1, *, -, ?)
         [5]: if set : +/- else n/a
         [6-7]: n/a
         [8-15]: char/charset
-[3-2]: 3 = {string}
-    [7-5 .. 1-0]: nchars
+[1-0]: 3 = {string}
+    [7-2]: nchars
     [8-n]: chars
 
 
