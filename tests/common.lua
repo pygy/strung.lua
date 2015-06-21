@@ -19,7 +19,8 @@ local function dumpacc()
      _acc, acc = acc, {string = {}, strung = {}}
     return _acc
 end
-if bench then 
+if bench then
+    local II = 0
     function try(f, a, s, d, g, h)
         -- jit.off() jit.on()
         tstring, tstrung = {}, {}

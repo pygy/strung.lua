@@ -44,8 +44,6 @@ try("find", "\0", "[%z]")
 try("find", "", "[%z]")
 
 
-try("find", "a", "a?a")
-
 try("find", "AAAAAA", "%f[%l]a")
 try("find", "AAAAAA", "%f[%l]")
 try("find", "aAaAb", "%f[%l]a", 2)
@@ -197,12 +195,17 @@ try("find", "wwSESDFBSF", "[A-Z]+")
 try("find", "S", "%u")
 try("find", "S", "[A-Z]")
 
+iter(50)
+
+try("find", "a", "a?a")
 try("find", "ab", "a?b")
 try("find", "b", "a?b")
 try("find", "abbab", "a?ba?b$")
 try("find", "abbabbab", "a?ba?b$")
 try("find", "abbabbab", "a?ba?ba?ba?ba?b$")
 try("find", "abbabbaba", "a?ba?ba?ba?ba?b$")
+
+iter(10)
 
 try("find", "aaaabaaaaabbaaaabb$", "a+bb$")
 try("find", "aaaabaaaaabbaaaabb", "a*bb$")
