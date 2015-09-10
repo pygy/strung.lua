@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/pygy/strung.lua.png?branch=master)](https://travis-ci.org/pygy/strung.lua)
+[![License](http://img.shields.io/badge/License-MIT-red.svg)](LICENSE)
+
 #strung.lua
 
 Version `1.0.0-rc1`.
