@@ -3,8 +3,6 @@ sudo: false
 
 env:
   matrix:
-    - LUA=lua5.1
-    - LUA=lua5.2
     - LUA=luajit
     - LUA=luajit2.1
 
