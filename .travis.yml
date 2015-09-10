@@ -1,0 +1,23 @@
+language: c
+sudo: false
+
+env:
+  matrix:
+    - LUA=lua5.1
+    - LUA=lua5.2
+    - LUA=luajit
+    - LUA=luajit2.1
+
+branches:
+  only: master
+
+before_install:
+  - source .travis.sh
+  - luarocks install busted
+
+install: luarocks install rockspecs/*.rockspec --only-deps
+
+script: busted
+
+notifications:
+  email: true
