@@ -1,5 +1,5 @@
 package = "strung"
-version = "1.0.0-rc1-1"
+version = "1.0.0.rc1-1"
 source = {
    url = "git://github.com/pygy/strung.lua.git",
    tag = "v1.0.0-rc1"
