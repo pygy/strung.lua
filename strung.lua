@@ -655,7 +655,7 @@ struct M {
 }]] local M = new"struct M" -- fields of the "_M_atchers" table.
 
 function compile (pat, mode) -- local, declared above
-  local anchored = (pat:sub(1,1) == "^")
+  local anchored = (pat:sub(1,1) == "^") and mode ~= "gmatch"
   local caps, sets = {open = 0, type={}}, {}
   local data = {}
   local buf = {

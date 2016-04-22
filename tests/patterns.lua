@@ -82,6 +82,8 @@ gmtry('abcdabcdabcd', "(a)(b)(d)")
 gmtry('abcdabcdabcd', "(a)(b)(d)")
 gmtry('abcabcabc', "(a)(b)")
 gmtry('abcabcabc', "(ab)")
+gmtry('^a', '^a')
+gmtry('a', '^a')
 
 iter(10)
 --- bug fix ---

@@ -1,3 +1,5 @@
+Warning, these are notes for an alternative implementation that has yet to materialize...
+
 # Bytecode reference:
 
 Instructions take 16 bits with the exception of {string} (variable, up to 33 bytes) and {long %f} (24 bits)
