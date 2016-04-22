@@ -8,6 +8,7 @@ iter(10)
 -- basic tests
 
 try("gsub", "_d_d_", "d", "+")
+try("gsub", "_d_d_", "d", 1)
 try("gsub", "_da_da_", "(d)a", "+")
 
 try("gsub", "_d_d_", "d", {})

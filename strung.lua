@@ -965,8 +965,7 @@ local gsub do
     end
   end
 
-  local function select_handler (ncaps, repl)
-    t = type(repl)
+  local function select_handler (ncaps, repl, t)
     if t == "string" then
       if repl:find("%%") then
         return string_with_captures_handler, string_with_captures_handler
@@ -978,7 +977,7 @@ local gsub do
     elseif t == "function" then
       return function_handler, producers[ncaps]
     else
-      error("Bad replacement type for GSUB TODO IMPROVE MESSAGE.")
+      error("bad argument #3 to 'strung.gsub' (string/function/table expected)")
     end
   end
 
@@ -990,7 +989,13 @@ local gsub do
 
     if not success then return subj, 0 end
 
-    local handler, producer = select_handler(c[M.NCAPS], repl)
+    local t = type(repl)
+
+    if t == "number" then
+      repl, t = tostring(repl), "string"
+    end
+
+    local handler, producer = select_handler(c[M.NCAPS], repl, t)
 
     -- Anchored patterns should not be matched more than once.
     if c[M.ANCHORED] then n = 1 end
